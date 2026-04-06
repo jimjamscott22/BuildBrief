@@ -2,6 +2,7 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.routing import APIRouter
+from app.routers.models import router as models_router
 
 app = FastAPI(title="BuildBrief API")
 
@@ -19,6 +20,8 @@ api_router = APIRouter(prefix="/api")
 def health_check():
     return {"status": "ok"}
 
+
+api_router.include_router(models_router)
 
 app.include_router(api_router)
 
