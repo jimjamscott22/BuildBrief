@@ -105,6 +105,35 @@ Expected user-facing message:
 
 The generate action should also remain disabled until a model is selected.
 
+## Running Locally
+
+### Prerequisites
+
+- [uv](https://docs.astral.sh/uv/getting-started/installation/) (Python backend)
+- Node.js 18+ and npm (frontend)
+- LM Studio or Ollama running locally with at least one model loaded
+
+### Backend
+
+```bash
+cd backend
+cp .env.example .env   # adjust URLs if your providers aren't on default ports
+uv sync
+uv run uvicorn app.main:app --reload
+```
+
+The API will be available at `http://localhost:8000`.
+
+### Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+The app will be available at `http://localhost:5173`.
+
 ## Development Notes
 
 During development, the frontend and backend run on separate local ports:
