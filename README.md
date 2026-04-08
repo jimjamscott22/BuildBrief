@@ -114,6 +114,41 @@ During development, the frontend and backend run on separate local ports:
 
 Because of that split, the backend needs CORS configured to allow requests from the frontend development origin.
 
+## Getting Started
+
+To run BuildBrief locally, you will need:
+
+- Node.js and npm for the frontend
+- Python 3.10+ for the backend
+- LM Studio or Ollama running locally if you want model discovery and generation to work
+
+Start the backend first:
+
+```bash
+cd backend
+cp .env.example .env
+uv sync
+uv run uvicorn app.main:app --reload --port 8000
+```
+
+`uv sync` will create the local virtual environment and install the backend dependencies declared in `backend/pyproject.toml`.
+
+Then start the frontend in a second terminal:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Once both servers are running:
+
+- Open `http://localhost:5173` for the frontend
+- Check `http://localhost:8000/api/health` for the backend health endpoint
+- If no local model provider is running, the UI will load but generation will stay unavailable until LM Studio or Ollama is reachable
+
+If you want architecture and product context before running the app, start with the docs linked below.
+
 ## Repository Docs
 
 - [Project spec](docs/project-spec.md)

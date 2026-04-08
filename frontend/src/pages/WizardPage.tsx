@@ -39,10 +39,10 @@ const initialForm: FormState = {
   extra_context: '',
 }
 
-const inputClass =
-  'w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white'
-const labelClass = 'block text-sm font-medium text-gray-700 mb-1'
+const labelClass = 'block text-sm font-medium text-slate-300 mb-1'
 const fieldClass = 'flex flex-col gap-1'
+
+const STEP_LABELS = ['The Idea', 'Platform & Tech', 'Context', 'Generate']
 
 export default function WizardPage() {
   const navigate = useNavigate()
@@ -131,26 +131,40 @@ export default function WizardPage() {
   const canGenerate = !!selectedModel && deliverables.length > 0 && !generating
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 sm:p-8">
+    <div className="bg-surface-900 rounded-xl border border-surface-700/60 shadow-[0_4px_40px_rgba(0,0,0,0.5)] p-6 sm:p-8">
+
       {/* Step indicator */}
       <div className="flex items-center justify-between mb-8">
         {[1, 2, 3, 4].map((n, i) => (
           <div key={n} className="flex items-center flex-1">
-            <div
-              className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold shrink-0 ${
-                step === n
-                  ? 'bg-indigo-600 text-white'
-                  : step > n
-                  ? 'bg-indigo-100 text-indigo-700'
-                  : 'bg-gray-100 text-gray-400'
-              }`}
-            >
-              {n}
+            <div className="flex flex-col items-center gap-1 shrink-0">
+              <div
+                className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300 ${
+                  step === n
+                    ? 'bg-brand-500 text-white shadow-glow-sm'
+                    : step > n
+                    ? 'bg-brand-900 text-brand-300 border border-brand-600'
+                    : 'bg-surface-800 text-surface-400 border border-surface-600'
+                }`}
+              >
+                {step > n ? (
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                ) : (
+                  n
+                )}
+              </div>
+              <span className={`text-[10px] font-medium hidden sm:block ${
+                step === n ? 'text-brand-300' : step > n ? 'text-brand-500' : 'text-surface-500'
+              }`}>
+                {STEP_LABELS[i]}
+              </span>
             </div>
             {i < 3 && (
               <div
-                className={`flex-1 h-0.5 mx-2 ${
-                  step > n ? 'bg-indigo-300' : 'bg-gray-200'
+                className={`flex-1 h-px mx-2 transition-all duration-500 ${
+                  step > n ? 'bg-brand-500/70' : 'bg-surface-700'
                 }`}
               />
             )}
@@ -161,56 +175,56 @@ export default function WizardPage() {
       {/* Step 1 */}
       {step === 1 && (
         <div className="flex flex-col gap-5">
-          <h2 className="text-lg font-semibold text-gray-800">The Idea</h2>
+          <h2 className="text-lg font-semibold text-white">The Idea</h2>
 
           <div className={fieldClass}>
             <label className={labelClass} htmlFor="title">
-              Project Title <span className="text-red-500">*</span>
+              Project Title <span className="text-red-400">*</span>
             </label>
             <input
               id="title"
               type="text"
-              className={inputClass}
+              className="input-dark"
               value={form.title}
               onChange={(e) => updateForm('title', e.target.value)}
               placeholder="e.g. Recipe Sharing App"
             />
             {errors.title && (
-              <span className="text-red-500 text-xs">* {errors.title}</span>
+              <span className="text-red-400 text-xs">* {errors.title}</span>
             )}
           </div>
 
           <div className={fieldClass}>
             <label className={labelClass} htmlFor="description">
-              Description <span className="text-red-500">*</span>
+              Description <span className="text-red-400">*</span>
             </label>
             <textarea
               id="description"
-              className={inputClass}
+              className="input-dark resize-none"
               rows={4}
               value={form.description}
               onChange={(e) => updateForm('description', e.target.value)}
               placeholder="Describe what your project does and what problem it solves…"
             />
             {errors.description && (
-              <span className="text-red-500 text-xs">* {errors.description}</span>
+              <span className="text-red-400 text-xs">* {errors.description}</span>
             )}
           </div>
 
           <div className={fieldClass}>
             <label className={labelClass} htmlFor="target_users">
-              Target Users <span className="text-red-500">*</span>
+              Target Users <span className="text-red-400">*</span>
             </label>
             <input
               id="target_users"
               type="text"
-              className={inputClass}
+              className="input-dark"
               value={form.target_users}
               onChange={(e) => updateForm('target_users', e.target.value)}
               placeholder="e.g. Home cooks and food enthusiasts"
             />
             {errors.target_users && (
-              <span className="text-red-500 text-xs">* {errors.target_users}</span>
+              <span className="text-red-400 text-xs">* {errors.target_users}</span>
             )}
           </div>
         </div>
@@ -219,7 +233,7 @@ export default function WizardPage() {
       {/* Step 2 */}
       {step === 2 && (
         <div className="flex flex-col gap-5">
-          <h2 className="text-lg font-semibold text-gray-800">Platform &amp; Tech</h2>
+          <h2 className="text-lg font-semibold text-white">Platform &amp; Tech</h2>
 
           <div className={fieldClass}>
             <span className={labelClass}>Platform</span>
@@ -227,10 +241,10 @@ export default function WizardPage() {
               {(['web', 'mobile', 'desktop', 'cli'] as const).map((p) => (
                 <label
                   key={p}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-md border cursor-pointer text-sm ${
+                  className={`flex items-center gap-2 px-4 py-2 rounded-md border cursor-pointer text-sm font-medium transition-all duration-200 ${
                     form.platform === p
-                      ? 'border-indigo-500 bg-indigo-50 text-indigo-700 font-medium'
-                      : 'border-gray-300 text-gray-600 hover:border-gray-400'
+                      ? 'border-brand-400 bg-brand-500/15 text-brand-300 shadow-glow-sm'
+                      : 'border-surface-600 text-surface-300 hover:border-surface-400 hover:text-slate-200 bg-surface-800/50'
                   }`}
                 >
                   <input
@@ -250,12 +264,12 @@ export default function WizardPage() {
           <div className={fieldClass}>
             <label className={labelClass} htmlFor="tech_preferences">
               Tech Preferences{' '}
-              <span className="text-gray-400 font-normal">(optional)</span>
+              <span className="text-surface-400 font-normal">(optional)</span>
             </label>
             <input
               id="tech_preferences"
               type="text"
-              className={inputClass}
+              className="input-dark"
               value={form.tech_preferences}
               onChange={(e) => updateForm('tech_preferences', e.target.value)}
               placeholder="e.g. React, Node.js, PostgreSQL"
@@ -268,7 +282,7 @@ export default function WizardPage() {
             </label>
             <select
               id="complexity"
-              className={inputClass}
+              className="input-dark"
               value={form.complexity}
               onChange={(e) =>
                 updateForm('complexity', e.target.value as FormState['complexity'])
@@ -285,16 +299,16 @@ export default function WizardPage() {
       {/* Step 3 */}
       {step === 3 && (
         <div className="flex flex-col gap-5">
-          <h2 className="text-lg font-semibold text-gray-800">Constraints &amp; Context</h2>
+          <h2 className="text-lg font-semibold text-white">Constraints &amp; Context</h2>
 
           <div className={fieldClass}>
             <label className={labelClass} htmlFor="constraints">
               Constraints{' '}
-              <span className="text-gray-400 font-normal">(optional)</span>
+              <span className="text-surface-400 font-normal">(optional)</span>
             </label>
             <textarea
               id="constraints"
-              className={inputClass}
+              className="input-dark resize-none"
               rows={3}
               value={form.constraints}
               onChange={(e) => updateForm('constraints', e.target.value)}
@@ -305,11 +319,11 @@ export default function WizardPage() {
           <div className={fieldClass}>
             <label className={labelClass} htmlFor="extra_context">
               Extra Context{' '}
-              <span className="text-gray-400 font-normal">(optional)</span>
+              <span className="text-surface-400 font-normal">(optional)</span>
             </label>
             <textarea
               id="extra_context"
-              className={inputClass}
+              className="input-dark resize-none"
               rows={3}
               value={form.extra_context}
               onChange={(e) => updateForm('extra_context', e.target.value)}
@@ -322,7 +336,7 @@ export default function WizardPage() {
       {/* Step 4 */}
       {step === 4 && (
         <div className="flex flex-col gap-5">
-          <h2 className="text-lg font-semibold text-gray-800">Model &amp; Outputs</h2>
+          <h2 className="text-lg font-semibold text-white">Model &amp; Outputs</h2>
 
           {/* Model picker */}
           <div className={fieldClass}>
@@ -330,15 +344,15 @@ export default function WizardPage() {
               Model
             </label>
             {!modelsLoaded ? (
-              <p className="text-sm text-gray-500">Loading models…</p>
+              <p className="text-sm text-surface-400 animate-pulse">Loading models…</p>
             ) : models.length === 0 ? (
-              <div className="rounded-md border border-yellow-300 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
+              <div className="rounded-md border border-amber-600/50 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
                 No models available. Please start LM Studio or Ollama and refresh.
               </div>
             ) : (
               <select
                 id="model"
-                className={inputClass}
+                className="input-dark"
                 value={selectedModel}
                 onChange={(e) => setSelectedModel(e.target.value)}
               >
@@ -354,31 +368,51 @@ export default function WizardPage() {
           {/* Deliverable checkboxes */}
           <div className={fieldClass}>
             <span className={labelClass}>
-              Deliverables <span className="text-red-500">*</span>
+              Deliverables <span className="text-red-400">*</span>
             </span>
-            <div className="flex flex-col gap-2">
-              {DELIVERABLE_OPTIONS.map(({ key, label }) => (
-                <label
-                  key={key}
-                  className="flex items-center gap-3 cursor-pointer group"
-                >
-                  <input
-                    type="checkbox"
-                    className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                    checked={deliverables.includes(key)}
-                    onChange={() => toggleDeliverable(key)}
-                  />
-                  <span className="text-sm text-gray-700 group-hover:text-gray-900">
-                    {label}
-                  </span>
-                </label>
-              ))}
+            <div className="flex flex-col gap-3">
+              {DELIVERABLE_OPTIONS.map(({ key, label }) => {
+                const checked = deliverables.includes(key)
+                return (
+                  <label
+                    key={key}
+                    className={`flex items-center gap-3 cursor-pointer px-4 py-3 rounded-md border transition-all duration-200 ${
+                      checked
+                        ? 'border-brand-500/60 bg-brand-500/10'
+                        : 'border-surface-600 bg-surface-800/50 hover:border-surface-500'
+                    }`}
+                  >
+                    <div
+                      className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-all duration-200 ${
+                        checked
+                          ? 'border-brand-400 bg-brand-500'
+                          : 'border-surface-500 bg-transparent'
+                      }`}
+                    >
+                      {checked && (
+                        <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                    </div>
+                    <input
+                      type="checkbox"
+                      className="sr-only"
+                      checked={checked}
+                      onChange={() => toggleDeliverable(key)}
+                    />
+                    <span className={`text-sm font-medium ${checked ? 'text-slate-100' : 'text-surface-300'}`}>
+                      {label}
+                    </span>
+                  </label>
+                )
+              })}
             </div>
           </div>
 
           {/* API error */}
           {apiError && (
-            <div className="rounded-md border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <div className="rounded-md border border-red-600/50 bg-red-500/10 px-4 py-3 text-sm text-red-300">
               {apiError}
             </div>
           )}
@@ -386,39 +420,28 @@ export default function WizardPage() {
       )}
 
       {/* Navigation */}
-      <div className="flex justify-between items-center mt-8 pt-6 border-t border-gray-100">
+      <div className="flex justify-between items-center mt-8 pt-6 border-t border-surface-700/60">
         <div>
           {step > 1 && (
-            <button
-              onClick={handleBack}
-              disabled={generating}
-              className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800 border border-gray-300 rounded-md hover:border-gray-400 disabled:opacity-50 transition-colors"
-            >
+            <button onClick={handleBack} disabled={generating} className="btn-ghost">
               Back
             </button>
           )}
         </div>
         <div>
           {step < 4 ? (
-            <button
-              onClick={handleNext}
-              className="px-5 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 transition-colors"
-            >
-              Next
+            <button onClick={handleNext} className="btn-primary">
+              Next →
             </button>
           ) : (
             <button
               onClick={handleGenerate}
               disabled={!canGenerate}
-              className={`px-5 py-2 text-sm font-medium rounded-md transition-colors ${
-                canGenerate
-                  ? 'bg-indigo-600 text-white hover:bg-indigo-700'
-                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-              }`}
+              className="btn-primary"
             >
               {generating
-                ? `Generating with ${selectedModel}…`
-                : 'Generate'}
+                ? `Generating…`
+                : 'Generate Brief'}
             </button>
           )}
         </div>

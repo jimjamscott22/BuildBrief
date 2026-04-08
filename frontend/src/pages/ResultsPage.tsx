@@ -31,14 +31,12 @@ export default function ResultsPage() {
 
   if (!deliverables || availableTabs.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
-        <p className="text-gray-600 text-base">
+      <div className="flex flex-col items-center justify-center py-20 gap-5 text-center">
+        <div className="text-5xl opacity-30">📋</div>
+        <p className="text-surface-300 text-base">
           No results to display. Please complete the wizard first.
         </p>
-        <Link
-          to="/wizard"
-          className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 transition-colors"
-        >
+        <Link to="/wizard" className="btn-primary">
           Go to Wizard
         </Link>
       </div>
@@ -63,31 +61,28 @@ export default function ResultsPage() {
       {/* Top bar */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-semibold text-gray-800">
-            Results{id ? ` — ${id}` : ''}
+          <h1 className="text-lg font-semibold text-white">
+            Results{id ? <span className="text-surface-400 font-normal text-sm ml-2">#{id}</span> : ''}
           </h1>
         </div>
-        <Link
-          to="/wizard"
-          className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800 border border-gray-300 rounded-md hover:border-gray-400 transition-colors"
-        >
-          Start Over
+        <Link to="/wizard" className="btn-ghost">
+          ← Start Over
         </Link>
       </div>
 
       {/* Tab bar */}
-      <div className="border-b border-gray-200">
-        <nav className="-mb-px flex gap-0" aria-label="Tabs">
+      <div className="border-b border-surface-700">
+        <nav className="-mb-px flex gap-1" aria-label="Tabs">
           {availableTabs.map(({ key, label }) => {
             const isActive = activeTab === key
             return (
               <button
                 key={key}
                 onClick={() => setActiveTab(key)}
-                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                className={`px-5 py-2.5 text-sm font-medium border-b-2 transition-all duration-200 whitespace-nowrap rounded-t-md ${
                   isActive
-                    ? 'border-indigo-600 text-indigo-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    ? 'border-brand-400 text-brand-300 bg-brand-500/10'
+                    : 'border-transparent text-surface-400 hover:text-slate-300 hover:border-surface-500 hover:bg-surface-800/50'
                 }`}
               >
                 {label}
@@ -98,18 +93,31 @@ export default function ResultsPage() {
       </div>
 
       {/* Markdown content */}
-      <div className="bg-white rounded-lg border border-gray-200 p-6 text-sm text-gray-800 leading-relaxed overflow-auto max-h-[60vh]">
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-          {content}
-        </ReactMarkdown>
+      <div className="bg-surface-900 rounded-xl border border-surface-700/60 p-6 overflow-auto max-h-[60vh] shadow-[inset_0_2px_20px_rgba(0,0,0,0.3)]">
+        <div className="prose prose-invert prose-sm max-w-none
+          prose-headings:text-slate-100 prose-headings:font-semibold
+          prose-p:text-slate-300 prose-p:leading-relaxed
+          prose-a:text-brand-300 prose-a:no-underline hover:prose-a:underline
+          prose-strong:text-slate-100
+          prose-code:text-brand-300 prose-code:bg-surface-800 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-xs
+          prose-pre:bg-surface-800 prose-pre:border prose-pre:border-surface-600
+          prose-blockquote:border-l-brand-500 prose-blockquote:text-surface-300
+          prose-li:text-slate-300
+          prose-hr:border-surface-700
+          prose-th:text-slate-200 prose-td:text-slate-300
+          prose-table:border-surface-700">
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            {content}
+          </ReactMarkdown>
+        </div>
       </div>
 
       {/* Download button */}
       <div className="flex justify-end">
-        <button
-          onClick={handleDownload}
-          className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 transition-colors"
-        >
+        <button onClick={handleDownload} className="btn-primary flex items-center gap-2">
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4" />
+          </svg>
           Download .md
         </button>
       </div>

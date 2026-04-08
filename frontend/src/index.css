@@ -1,3 +1,68 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  html, body, #root {
+    @apply bg-surface-950 text-slate-100;
+    min-height: 100vh;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-surface-900;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-surface-500 rounded-full;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-brand-400;
+  }
+
+  /* Select and option dark override */
+  select option {
+    @apply bg-surface-800 text-slate-100;
+  }
+}
+
+@layer components {
+  /* Reusable glowing focus ring */
+  .ring-brand {
+    @apply focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400;
+  }
+
+  /* Dark input base */
+  .input-dark {
+    @apply w-full bg-surface-800 border border-surface-500 rounded-md px-3 py-2 text-sm
+           text-slate-100 placeholder-slate-500
+           focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400
+           transition-shadow transition-colors;
+  }
+
+  /* Primary CTA button */
+  .btn-primary {
+    @apply px-5 py-2 text-sm font-semibold text-white rounded-md
+           bg-brand-500 hover:bg-brand-400
+           shadow-glow-sm hover:shadow-glow-brand
+           transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed;
+  }
+
+  /* Ghost / secondary button */
+  .btn-ghost {
+    @apply px-4 py-2 text-sm font-medium rounded-md
+           border border-surface-500 text-slate-400
+           hover:border-brand-400 hover:text-brand-300
+           transition-colors duration-200 disabled:opacity-40 disabled:cursor-not-allowed;
+  }
+}
+
+@layer utilities {
+  /* Subtle horizontal separator glow */
+  .border-glow {
+    border-color: theme('colors.brand.500 / 40%');
+  }
+}
