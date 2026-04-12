@@ -121,8 +121,8 @@ export default function WizardPage() {
         deliverables,
       })
       navigate(`/results/${id}`, { state: { deliverables: result } })
-    } catch {
-      setApiError('Something went wrong. Please try again.')
+    } catch (err) {
+      setApiError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
     } finally {
       setGenerating(false)
     }

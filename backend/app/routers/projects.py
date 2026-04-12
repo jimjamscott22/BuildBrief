@@ -30,16 +30,20 @@ DELIVERABLE_PROMPTS = {
 
 
 def _system_context(project: Project) -> str:
-    return (
-        f"Project: {project.title}\n"
-        f"Description: {project.description}\n"
-        f"Target users: {project.target_users}\n"
-        f"Platform: {project.platform}\n"
-        f"Tech preferences: {project.tech_preferences}\n"
-        f"Complexity: {project.complexity}\n"
-        f"Constraints: {project.constraints}\n"
-        f"Extra context: {project.extra_context}"
-    )
+    lines = [
+        f"Project: {project.title}",
+        f"Description: {project.description}",
+        f"Target users: {project.target_users}",
+        f"Platform: {project.platform}",
+        f"Complexity: {project.complexity}",
+    ]
+    if project.tech_preferences:
+        lines.append(f"Tech preferences: {project.tech_preferences}")
+    if project.constraints:
+        lines.append(f"Constraints: {project.constraints}")
+    if project.extra_context:
+        lines.append(f"Extra context: {project.extra_context}")
+    return "\n".join(lines)
 
 
 @router.post("", status_code=201)
@@ -86,8 +90,10 @@ async def generate_deliverables(project_id: str, body: GenerateRequest):
         prompt = f"{context}\n\n{instruction}"
         try:
             result = await providers.generate(body.model, prompt)
+        except (RuntimeError, ValueError) as exc:
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
         except Exception as exc:
-            raise HTTPException(status_code=502, detail="LLM generation failed") from exc
+            raise HTTPException(status_code=502, detail="LLM generation failed unexpectedly.") from exc
         updates[deliverable_name] = result
 
     deliverable = Deliverable(**updates)
