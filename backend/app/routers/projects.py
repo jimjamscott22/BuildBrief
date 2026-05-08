@@ -1,10 +1,7 @@
-import uuid
-from datetime import datetime
-
 from fastapi import APIRouter, HTTPException
 
 from app import providers, storage
-from app.models import Deliverable, Project, ProjectWithDeliverables
+from app.models import Deliverable, Project, ProjectSummary, ProjectWithDeliverables
 from app.schemas import GenerateRequest, ProjectCreate
 
 router = APIRouter()
@@ -44,35 +41,41 @@ def _system_context(project: Project) -> str:
 
 @router.post("", status_code=201)
 async def create_project(body: ProjectCreate):
-    project_id = str(uuid.uuid4())
-    project = Project(
-        id=project_id,
-        created_at=datetime.utcnow(),
-        **body.model_dump(),
-    )
-    storage.projects[project_id] = project
-    return {"id": project_id}
+    project = storage.create_project(body)
+    return {"id": project.id}
+
+
+@router.get("", response_model=list[ProjectSummary])
+async def list_projects():
+    return storage.list_projects()
 
 
 @router.get("/{project_id}", response_model=ProjectWithDeliverables)
 async def get_project(project_id: str):
-    project = storage.projects.get(project_id)
-    if project is None:
+    record = storage.get_project(project_id)
+    if record is None:
         raise HTTPException(status_code=404, detail="Project not found")
-    deliverable = storage.deliverables.get(project_id)
-    return ProjectWithDeliverables(project=project, deliverables=deliverable)
+    return record
+
+
+@router.delete("/{project_id}", status_code=204)
+async def delete_project(project_id: str):
+    deleted = storage.delete_project(project_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return None
 
 
 @router.post("/{project_id}/generate", response_model=Deliverable)
 async def generate_deliverables(project_id: str, body: GenerateRequest):
-    project = storage.projects.get(project_id)
-    if project is None:
+    record = storage.get_project(project_id)
+    if record is None:
         raise HTTPException(status_code=404, detail="Project not found")
 
+    project = record.project
     context = _system_context(project)
 
-    # Start from existing deliverable or blank
-    existing = storage.deliverables.get(project_id) or Deliverable()
+    existing = record.deliverables or Deliverable()
     updates: dict = existing.model_dump()
 
     for deliverable_name in body.deliverables:
@@ -90,6 +93,7 @@ async def generate_deliverables(project_id: str, body: GenerateRequest):
             raise HTTPException(status_code=502, detail="LLM generation failed") from exc
         updates[deliverable_name] = result
 
-    deliverable = Deliverable(**updates)
-    storage.deliverables[project_id] = deliverable
+    deliverable = storage.save_deliverables(project_id, Deliverable(**updates))
+    if deliverable is None:
+        raise HTTPException(status_code=404, detail="Project not found")
     return deliverable

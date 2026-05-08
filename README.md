@@ -33,9 +33,9 @@ BuildBrief/
 └── backend/           # FastAPI + Python 3.10+
 ```
 
-The frontend handles the wizard, results display, and client-side export. The backend owns all LLM communication and API orchestration. The frontend does not call any model provider directly.
+The frontend handles the wizard, saved-project library, results display, and client-side export. The backend owns all LLM communication, API orchestration, and MariaDB persistence. The frontend does not call any model provider directly.
 
-For the MVP, project data is stored in memory using UUID-keyed records. A database is intentionally not required for the initial version. Persistent storage can be added later when account support, history, or saved projects become necessary.
+Project intake data and generated deliverables are stored in MariaDB using UUID-keyed project records. This allows generated plans to survive backend restarts and be reopened from the Library page.
 
 ## LLM Providers
 
@@ -78,9 +78,11 @@ The backend API is designed around project intake, model discovery, and delivera
 | Method | Endpoint | Description |
 | --- | --- | --- |
 | GET | `/api/models` | Probe local providers and return a combined model list |
+| GET | `/api/projects` | Return saved project summaries for the Library |
 | POST | `/api/projects` | Store intake data and return a project UUID |
 | POST | `/api/projects/{id}/generate` | Generate the selected deliverables for a project |
 | GET | `/api/projects/{id}` | Return stored project data and generated deliverables |
+| DELETE | `/api/projects/{id}` | Delete a saved project and its deliverables |
 
 ## Frontend Behavior
 
@@ -91,7 +93,9 @@ The frontend is expected to provide:
 - A model picker populated from `GET /api/models`
 - Deliverable selection via checkboxes
 - A loading state during generation that references the selected model
+- A saved-project Library with search and platform filtering
 - A tabbed results view with one tab per generated deliverable
+- Reloadable result URLs backed by persisted project records
 - Markdown rendering using `react-markdown` and `remark-gfm`
 - Client-side Markdown export for each deliverable
 
@@ -120,13 +124,35 @@ To run BuildBrief locally, you will need:
 
 - Node.js and npm for the frontend
 - Python 3.10+ for the backend
+- A MariaDB server for saved projects and deliverables
 - LM Studio or Ollama running locally if you want model discovery and generation to work
+
+Create a MariaDB database and user on your Raspberry Pi:
+
+```sql
+CREATE DATABASE buildbrief CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'buildbrief_user'@'%' IDENTIFIED BY 'change-me';
+GRANT ALL PRIVILEGES ON buildbrief.* TO 'buildbrief_user'@'%';
+FLUSH PRIVILEGES;
+```
+
+Then configure the backend environment:
+
+```bash
+cd backend
+cp .env.example .env
+```
+
+Edit `backend/.env` so `DATABASE_URL` points to your MariaDB server:
+
+```env
+DATABASE_URL=mysql+pymysql://buildbrief:change-me@raspberrypi.local:3306/buildbrief
+```
 
 Start the backend first:
 
 ```bash
 cd backend
-cp .env.example .env
 uv sync
 uv run uvicorn app.main:app --reload --port 8000
 ```
@@ -145,6 +171,7 @@ Once both servers are running:
 
 - Open `http://localhost:5173` for the frontend
 - Check `http://localhost:8000/api/health` for the backend health endpoint
+- Open `http://localhost:5173/library` to revisit saved project plans
 - If no local model provider is running, the UI will load but generation will stay unavailable until LM Studio or Ollama is reachable
 
 If you want architecture and product context before running the app, start with the docs linked below.
@@ -158,4 +185,4 @@ If you want architecture and product context before running the app, start with 
 
 ## Current Status
 
-This repository currently contains the planning and design documentation for the BuildBrief MVP. The implementation is intended to follow the architecture and behavior described in the docs above.
+BuildBrief includes the core wizard, local model discovery, deliverable generation, MariaDB-backed project persistence, and a saved-project Library.

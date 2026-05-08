@@ -2,6 +2,7 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.routing import APIRouter
+from app import storage
 from app.routers.models import router as models_router
 from app.routers.projects import router as projects_router
 
@@ -26,6 +27,11 @@ api_router.include_router(models_router)
 api_router.include_router(projects_router, prefix="/projects")
 
 app.include_router(api_router)
+
+
+@app.on_event("startup")
+def startup() -> None:
+    storage.init_db()
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

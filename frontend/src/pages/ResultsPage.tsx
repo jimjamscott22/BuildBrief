@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useParams, useLocation, Link } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { Deliverable } from '../api'
+import { Deliverable, getProject, Project } from '../api'
 
 interface LocationState {
   deliverables: Deliverable
@@ -18,26 +18,73 @@ export default function ResultsPage() {
   const { id } = useParams<{ id: string }>()
   const location = useLocation()
   const state = location.state as LocationState | null
+  const [project, setProject] = useState<Project | null>(null)
+  const [fetchedDeliverables, setFetchedDeliverables] = useState<Deliverable | null>(null)
+  const [loading, setLoading] = useState(!state?.deliverables)
+  const [error, setError] = useState('')
 
-  const deliverables = state?.deliverables
+  useEffect(() => {
+    if (!id || state?.deliverables) return
 
-  const availableTabs = TAB_CONFIG.filter(
-    (t) => deliverables && deliverables[t.key] != null
+    setLoading(true)
+    setError('')
+    getProject(id)
+      .then((record) => {
+        setProject(record.project)
+        setFetchedDeliverables(record.deliverables)
+      })
+      .catch(() => setError('Could not load that saved project.'))
+      .finally(() => setLoading(false))
+  }, [id, state?.deliverables])
+
+  const deliverables = state?.deliverables ?? fetchedDeliverables ?? undefined
+
+  const availableTabs = useMemo(
+    () => TAB_CONFIG.filter((t) => deliverables && deliverables[t.key] != null),
+    [deliverables]
   )
 
   const [activeTab, setActiveTab] = useState<keyof Deliverable | null>(
     availableTabs.length > 0 ? availableTabs[0].key : null
   )
 
+  useEffect(() => {
+    if (availableTabs.length === 0) {
+      setActiveTab(null)
+      return
+    }
+    if (!activeTab || !availableTabs.some((tab) => tab.key === activeTab)) {
+      setActiveTab(availableTabs[0].key)
+    }
+  }, [activeTab, availableTabs])
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 gap-5 text-center">
+        <p className="text-surface-300 text-base">Loading saved results...</p>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 gap-5 text-center">
+        <p className="text-red-300 text-base">{error}</p>
+        <Link to="/library" className="btn-primary">
+          Back to Library
+        </Link>
+      </div>
+    )
+  }
+
   if (!deliverables || availableTabs.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-5 text-center">
-        <div className="text-5xl opacity-30">📋</div>
         <p className="text-surface-300 text-base">
-          No results to display. Please complete the wizard first.
+          No generated deliverables to display for this project.
         </p>
-        <Link to="/wizard" className="btn-primary">
-          Go to Wizard
+        <Link to="/library" className="btn-primary">
+          Back to Library
         </Link>
       </div>
     )
@@ -62,12 +109,18 @@ export default function ResultsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-lg font-semibold text-white">
-            Results{id ? <span className="text-surface-400 font-normal text-sm ml-2">#{id}</span> : ''}
+            {project?.title ?? 'Results'}
+            {id ? <span className="text-surface-400 font-normal text-sm ml-2">#{id}</span> : ''}
           </h1>
         </div>
-        <Link to="/wizard" className="btn-ghost">
-          ← Start Over
-        </Link>
+        <div className="flex gap-3">
+          <Link to="/library" className="btn-ghost">
+            Library
+          </Link>
+          <Link to="/wizard" className="btn-ghost">
+            Start Over
+          </Link>
+        </div>
       </div>
 
       {/* Tab bar */}

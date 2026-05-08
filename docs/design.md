@@ -12,8 +12,7 @@ BuildBrief/
 
 The backend owns all LLM communication. The frontend never calls any LLM provider directly.
 
-**Storage (MVP):** In-memory dict keyed by UUID — no database required for the initial build.  
-**Storage (future):** MariaDB for persistence once accounts/history are needed.
+**Storage:** MariaDB via SQLAlchemy, keyed by UUID project records. Generated deliverables are persisted one row per project so result URLs can be reopened after backend restarts.
 
 ---
 
@@ -42,9 +41,11 @@ Models are prefixed by source (`lmstudio/` or `ollama/`) and presented together 
 | Method | Endpoint                      | Description                                        |
 | ------ | ----------------------------- | -------------------------------------------------- |
 | GET    | `/api/models`                 | Probes both providers; returns combined model list |
-| POST   | `/api/projects`               | Stores intake data in session; returns UUID        |
+| GET    | `/api/projects`               | Returns saved project summaries for the Library    |
+| POST   | `/api/projects`               | Stores intake data; returns UUID                   |
 | POST   | `/api/projects/{id}/generate` | Calls chosen model; returns deliverables dict      |
 | GET    | `/api/projects/{id}`          | Returns project + deliverables                     |
+| DELETE | `/api/projects/{id}`          | Deletes project + deliverables                     |
 
 ---
 
@@ -112,7 +113,9 @@ During development the frontend (Vite, default port `5173`) and backend (Uvicorn
 
 ## Frontend Behaviour
 
+- **Library view:** Searchable saved-project list with platform filtering and delete/open actions.
 - **Results view:** Tabbed layout — one tab per generated deliverable.
+- **Reloadable results:** `/results/:id` fetches persisted project data if navigation state is missing.
 - **Rendering:** `react-markdown` + `remark-gfm` for full Markdown/GFM support.
 - **Loading state:** Spinner shown during generation, labelled with the selected model name.
 - **Export:** Client-side Markdown download button per deliverable (no server round-trip needed).

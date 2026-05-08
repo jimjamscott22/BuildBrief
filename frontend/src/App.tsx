@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import Layout from './components/Layout'
+import LibraryPage from './pages/LibraryPage'
 import WizardPage from './pages/WizardPage'
 import ResultsPage from './pages/ResultsPage'
 
@@ -10,6 +11,7 @@ export default function App() {
         <Route element={<Layout />}>
           <Route index element={<Navigate to="/wizard" replace />} />
           <Route path="/wizard" element={<WizardPage />} />
+          <Route path="/library" element={<LibraryPage />} />
           <Route path="/results/:id" element={<ResultsPage />} />
         </Route>
       </Routes>

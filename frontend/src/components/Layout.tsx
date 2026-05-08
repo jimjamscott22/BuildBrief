@@ -1,4 +1,7 @@
-import { Outlet } from 'react-router-dom'
+import { NavLink, Outlet } from 'react-router-dom'
+
+const navClass = ({ isActive }: { isActive: boolean }) =>
+  isActive ? 'btn-ui-kit' : 'btn-ui-kit-dark'
 
 export default function Layout() {
   return (
@@ -15,12 +18,12 @@ export default function Layout() {
           </div>
           
           <nav className="flex flex-wrap items-center justify-center gap-3">
-            <a href="https://github.com/features/copilot" target="_blank" rel="noreferrer" className="btn-ui-kit">
-              Vibe-Coding
-            </a>
-            <a href="https://learnprompting.org/" target="_blank" rel="noreferrer" className="btn-ui-kit-dark">
-              Prompt Engineering
-            </a>
+            <NavLink to="/wizard" className={navClass}>
+              Wizard
+            </NavLink>
+            <NavLink to="/library" className={navClass}>
+              Library
+            </NavLink>
             <a href="https://github.com/github/copilot-resources" target="_blank" rel="noreferrer" className="btn-ui-kit-dark">
               Resources
             </a>

@@ -8,7 +8,8 @@ BuildBrief is a project planning assistant that takes rough software ideas and g
 - **Structuring Engine:** Analyzes the idea and organizes it into key components: problem, users, features, data entities, constraints, and risks.
 - **Output Generator:** Produces various deliverables such as specification documents, MVP checklists, implementation roadmaps, database schemas, API plans, and agent coding prompts for tools like Codex, Claude, and Cursor.
 - **Iteration Layer:** Enables refining and adjusting the generated outputs—e.g. simplifying the project for an MVP or adapting to a different tech stack.
-- **Export Options:** Exports deliverables in multiple formats including Markdown, PDF, DOCX, and JSON.
+- **Saved Library:** Persists project intake data and generated deliverables in MariaDB so plans can be reopened later.
+- **Export Options:** Exports generated deliverables as Markdown.
 
 ## Docs
 
@@ -25,7 +26,8 @@ These instructions will guide you in setting up the project locally for developm
 
 - Node.js (v18.x or later) and npm or yarn
 - Python 3.10+
-- pip installed
+- uv for backend dependency management
+- MariaDB for saved projects and deliverables
 - A modern web browser
 
 ### Installation
@@ -41,9 +43,14 @@ Install backend dependencies:
 
 ```bash
 cd backend
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
+cp .env.example .env
+uv sync
+```
+
+Set `DATABASE_URL` in `backend/.env` to your MariaDB server, for example:
+
+```env
+DATABASE_URL=mysql+pymysql://buildbrief:change-me@raspberrypi.local:3306/buildbrief
 ```
 
 Install frontend dependencies:
@@ -61,8 +68,7 @@ Start the backend (FastAPI):
 
 ```bash
 cd backend
-source venv/bin/activate
-uvicorn app.main:app --reload
+uv run uvicorn app.main:app --reload --port 8000
 ```
 
 The backend will run at `http://localhost:8000`.
@@ -74,11 +80,11 @@ cd frontend
 npm run dev
 ```
 
-The frontend will open at `http://localhost:3000`.
+The frontend will open at `http://localhost:5173`.
 
 ## Usage
 
-Once running, open `http://localhost:3000` in your browser. Enter your project idea via the intake form. Fill out as many fields as possible. Select the desired outputs and generate your documents. Review and refine the results, then export them.
+Once running, open `http://localhost:5173` in your browser. Enter your project idea via the intake form. Fill out as many fields as possible. Select the desired outputs and generate your documents. Reopen saved plans from `/library`, review the results, then export them.
 
 ## Project Structure
 
@@ -88,22 +94,23 @@ buildbrief/
 │   ├── app/
 │   │   ├── main.py           # FastAPI entrypoint
 │   │   ├── schemas.py        # Pydantic models
-│   │   ├── services/         # Business logic modules
-│   │   └── …
-│   ├── requirements.txt      # Python dependencies
-│   └── …
+│   │   ├── routers/          # API routes
+│   │   ├── storage.py        # MariaDB persistence
+│   │   └── ...
+│   ├── pyproject.toml        # Python dependencies
+│   └── ...
 ├── frontend/
 │   ├── src/
 │   │   ├── components/
 │   │   ├── pages/
-│   │   ├── services/         # API calls
-│   │   └── …
+│   │   ├── api.ts            # API calls
+│   │   └── ...
 │   ├── package.json          # Node dependencies
-│   └── …
+│   └── ...
 ├── docs/
 │   ├── project-spec.md
 │   ├── implementation-plan.md
-│   └── …
+│   └── ...
 ├── README.md
 └── .gitignore
 ```

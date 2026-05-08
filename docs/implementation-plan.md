@@ -18,7 +18,7 @@ This document outlines the tasks, milestones, and timeline for building the Buil
 - Install FastAPI, Uvicorn, Pydantic, and Jinja2.
 - Create FastAPI project structure (`app/main.py`, `app/models.py`, `app/schemas.py`).
 - Define `Project` and `Deliverable` models using Pydantic.
-- Implement in‑memory storage or SQLite using SQLModel or SQLAlchemy.
+- Implement MariaDB storage using SQLAlchemy.
 - Implement `POST /api/projects` endpoint to create a new project from intake data.
 - Implement `POST /api/projects/{id}/generate` endpoint to generate deliverables using Jinja2 templates.
 - Implement `GET /api/projects/{id}` to return project details.
@@ -70,7 +70,7 @@ Render templates with provided intake data.
 
 ### 1. Improved Storage
 
-- Replace in‑memory storage with SQLite database using SQLAlchemy for persistence.
+- Extend MariaDB-backed storage with richer history, tags, and deliverable versioning.
 - Add timestamps and versioning.
 
 ### 2. Styling & UX
@@ -124,7 +124,7 @@ Assuming a 3‑month timeline for MVP:
 | 1–2 | Repository setup, backend and frontend foundations |
 | 3–4 | Implement intake form, deliverable generation endpoints, initial templates |
 | 5–6 | Build deliverable selection and display UI; add basic export |
-| 7–8 | Transition to SQLite, improve styling, build basic NLP normalization |
+| 7–8 | Improve Library polish, styling, and basic NLP normalization |
 | 9–10 | Add new templates (schema, API) and export formats |
 | 11–12 | Bug fixing, documentation, deployment preparation |
 

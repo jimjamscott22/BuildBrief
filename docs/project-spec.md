@@ -40,6 +40,7 @@ Primary users include solo developers, students, indie hackers, and startup team
   - `POST /projects` — create project with intake data.
   - `POST /projects/{id}/generate` — generate selected deliverables.
   - `GET /projects/{id}` — retrieve project and deliverables.
+- MariaDB persistence for saved projects and generated deliverables.
 - Simple template generation using Jinja2 or similar templating library.
 - Markdown output for specification doc, implementation plan, and agent prompt.
 - Download/export as markdown and plain text.
@@ -60,7 +61,7 @@ Primary users include solo developers, students, indie hackers, and startup team
 |---|---|
 | Frontend | React with Vite, TypeScript, TailwindCSS, shadcn/ui |
 | Backend | Python 3.10+, FastAPI, Pydantic, Jinja2 |
-| Database | SQLite (MVP); Postgres (scalable) |
+| Database | MariaDB |
 | AI Integration | OpenAI API or local models; templated agent prompts |
 | Deployment | Dockerised services; Heroku or Vercel |
 
@@ -68,16 +69,18 @@ Primary users include solo developers, students, indie hackers, and startup team
 
 | Method | Endpoint | Description |
 |---|---|---|
+| GET | `/api/projects` | Return saved project summaries |
 | POST | `/api/projects` | Accept JSON of intake data; return project ID |
 | POST | `/api/projects/{id}/generate` | Accept deliverable selection; return content |
 | GET | `/api/projects/{id}` | Return project details and deliverables |
+| DELETE | `/api/projects/{id}` | Delete a saved project and its deliverables |
 | PUT | `/api/projects/{id}` | Update intake data and regenerate deliverables |
 | GET | `/api/templates` | List available output templates |
 
 ## Data Model
 
-- **Project:** `id`, `title`, `description`, `target_users`, `platform`, `tech_preferences`, `complexity`, `constraints`, `created_at`
-- **Deliverable:** `id`, `project_id`, `type` (spec, implementation_plan, agent_prompt), `content`, `format`, `created_at`
+- **Project:** `id`, `title`, `description`, `target_users`, `platform`, `tech_preferences`, `complexity`, `constraints`, `extra_context`, `created_at`, `updated_at`
+- **Deliverable:** `project_id`, `spec`, `implementation_plan`, `agent_prompt`
 - **Template:** `id`, `name`, `description`, `template_file`
 
 ## Implementation Phases
@@ -86,7 +89,7 @@ Primary users include solo developers, students, indie hackers, and startup team
 
 - Set up repository and environment.
 - Scaffold frontend and backend.
-- Implement Project model and simple in‑memory store or SQLite.
+- Implement Project model and MariaDB persistence.
 - Build intake form and API endpoint for project creation.
 - Build basic template generator for spec doc, implementation plan, and agent prompt.
 - Provide simple UI for selecting and viewing deliverables.
@@ -97,7 +100,7 @@ Primary users include solo developers, students, indie hackers, and startup team
 - Improve the normalization engine to handle more complex input.
 - Add export options (Markdown, PDF, etc.).
 - Create example templates and allow user selection.
-- Add project history and storage.
+- Add project history and saved-library polish.
 
 ### Phase 3 – Advanced Features
 
