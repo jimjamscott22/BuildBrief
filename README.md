@@ -114,7 +114,7 @@ The generate action should also remain disabled until a model is selected.
 During development, the frontend and backend run on separate local ports:
 
 - Frontend: Vite on `http://localhost:5173`
-- Backend: Uvicorn on `http://localhost:8000`
+- Backend: Uvicorn on `http://localhost:8001`
 
 Because of that split, the backend needs CORS configured to allow requests from the frontend development origin.
 
@@ -154,7 +154,7 @@ Start the backend first:
 ```bash
 cd backend
 uv sync
-uv run uvicorn app.main:app --reload --port 8000
+uv run uvicorn app.main:app --reload --port 8001
 ```
 
 `uv sync` will create the local virtual environment and install the backend dependencies declared in `backend/pyproject.toml`.

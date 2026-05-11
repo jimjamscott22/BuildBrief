@@ -58,8 +58,8 @@ if [[ ! -d "$FRONTEND_DIR/node_modules" ]]; then
   (cd "$FRONTEND_DIR" && npm install)
 fi
 
-echo "Starting BuildBrief backend on http://localhost:8000..."
-(cd "$BACKEND_DIR" && uv run uvicorn app.main:app --reload --port 8000) &
+echo "Starting BuildBrief backend on http://localhost:8001..."
+(cd "$BACKEND_DIR" && uv run uvicorn app.main:app --reload --port 8001) &
 BACKEND_PID=$!
 
 echo "Starting BuildBrief frontend on $FRONTEND_URL..."

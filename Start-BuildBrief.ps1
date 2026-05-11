@@ -50,9 +50,9 @@ try {
         Pop-Location
     }
 
-    Write-Host "Starting BuildBrief backend on http://localhost:8000..."
+    Write-Host "Starting BuildBrief backend on http://localhost:8001..."        
     $backendProcess = Start-Process -FilePath "uv" `
-        -ArgumentList @("run", "uvicorn", "app.main:app", "--reload", "--port", "8000") `
+        -ArgumentList @("run", "uvicorn", "app.main:app", "--reload", "--port", "8001") `
         -WorkingDirectory $BackendDir `
         -NoNewWindow `
         -PassThru
