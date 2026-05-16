@@ -4,35 +4,78 @@ export default {
   theme: {
     extend: {
       colors: {
-        brand: {
-          50:  '#e6f4ff',
-          100: '#bae3ff',
-          200: '#7cc4fa',
-          300: '#36a3f7',
-          400: '#0d8eea',
-          500: '#0075d4',
-          600: '#005baa',
-          700: '#004482',
-          800: '#002e59',
-          900: '#001831',
+        ink: {
+          950: '#07111f',
+          900: '#0b1626',
+          800: '#12203a',
+          700: '#1b2c4a',
+          600: '#2a3f63',
+          500: '#4a6488',
+          400: '#6b85a8',
         },
-        surface: {
-          50:  '#f0f2f5',
-          100: '#dde1e9',
-          200: '#b8c0cc',
-          300: '#8993a4',
-          400: '#5c6578',
-          500: '#3a3f4e',
-          600: '#282d3b',
-          700: '#1e2230',
-          800: '#161a26',
-          900: '#0e111a',
-          950: '#080a11',
+        paper: {
+          DEFAULT: '#ece6d3',
+          dim: '#b9b2a0',
+          mute: '#7a7466',
+        },
+        cyan: {
+          200: '#bfe0ff',
+          300: '#8fcaff',
+          400: '#5fb4ff',
+          500: '#3a98ec',
+          600: '#1f7bcc',
+        },
+        ember: {
+          DEFAULT: '#ff8a3d',
+          dim: '#c66a2d',
+        },
+        rose: {
+          DEFAULT: '#f06a6a',
+          dim: '#b94f4f',
         },
       },
-      boxShadow: {
-        'glow-brand': '0 0 16px rgba(13, 142, 234, 0.35)',
-        'glow-sm':    '0 0 8px  rgba(13, 142, 234, 0.25)',
+      fontFamily: {
+        display: ['"Instrument Serif"', 'Georgia', 'serif'],
+        mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'monospace'],
+        sans: ['Geist', 'Manrope', 'system-ui', 'sans-serif'],
+      },
+      backgroundImage: {
+        grid: `
+          linear-gradient(to right, rgba(95, 180, 255, 0.06) 1px, transparent 1px),
+          linear-gradient(to bottom, rgba(95, 180, 255, 0.06) 1px, transparent 1px)
+        `,
+        'grid-fine': `
+          linear-gradient(to right, rgba(95, 180, 255, 0.04) 1px, transparent 1px),
+          linear-gradient(to bottom, rgba(95, 180, 255, 0.04) 1px, transparent 1px)
+        `,
+        'radial-hero':
+          'radial-gradient(ellipse 60% 50% at 30% 0%, rgba(95, 180, 255, 0.10), transparent 70%)',
+      },
+      backgroundSize: {
+        grid: '32px 32px',
+        'grid-fine': '8px 8px',
+      },
+      letterSpacing: {
+        'tighter-2': '-0.04em',
+      },
+      keyframes: {
+        'draw-line': {
+          '0%': { transform: 'scaleX(0)' },
+          '100%': { transform: 'scaleX(1)' },
+        },
+        'fade-up': {
+          '0%': { opacity: '0', transform: 'translateY(8px)', letterSpacing: '0.02em' },
+          '100%': { opacity: '1', transform: 'translateY(0)', letterSpacing: '-0.02em' },
+        },
+        'fade-in': {
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' },
+        },
+      },
+      animation: {
+        'draw-line': 'draw-line 600ms cubic-bezier(0.22, 1, 0.36, 1) forwards',
+        'fade-up': 'fade-up 700ms cubic-bezier(0.22, 1, 0.36, 1) forwards',
+        'fade-in': 'fade-in 500ms ease-out forwards',
       },
     },
   },
@@ -40,4 +83,3 @@ export default {
     require('@tailwindcss/typography'),
   ],
 }
-

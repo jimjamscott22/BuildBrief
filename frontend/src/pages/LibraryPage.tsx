@@ -13,11 +13,13 @@ function formatDate(value: string) {
 
 function deliverableLabels(project: ProjectSummary) {
   return [
-    project.has_spec ? 'Spec' : null,
-    project.has_implementation_plan ? 'Plan' : null,
-    project.has_agent_prompt ? 'Prompt' : null,
-  ].filter(Boolean)
+    project.has_spec ? 'spec' : null,
+    project.has_implementation_plan ? 'plan' : null,
+    project.has_agent_prompt ? 'prompt' : null,
+  ].filter(Boolean) as string[]
 }
+
+const pad = (n: number) => n.toString().padStart(2, '0')
 
 export default function LibraryPage() {
   const [projects, setProjects] = useState<ProjectSummary[]>([])
@@ -63,122 +65,145 @@ export default function LibraryPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-semibold text-white">Library</h1>
-          <p className="text-sm text-surface-400 mt-1">
-            Saved project plans and generated deliverables.
-          </p>
+    <div className="flex flex-col gap-10">
+      {/* Hero */}
+      <header className="flex flex-col gap-4 pt-2">
+        <div className="flex items-center gap-3">
+          <span className="caption text-cyan-400">INDEX</span>
+          <span className="h-px w-10 bg-cyan-400/50" />
+          <span className="caption text-paper-dim">
+            {loading ? '—' : `${projects.length} ${projects.length === 1 ? 'BRIEF' : 'BRIEFS'} ON FILE`}
+          </span>
         </div>
-        <Link to="/wizard" className="btn-primary text-center">
-          New Brief
-        </Link>
-      </div>
+        <div className="flex items-end justify-between gap-6 flex-wrap">
+          <h2 className="font-display italic text-[3rem] sm:text-[3.5rem] leading-[0.95] tracking-tighter-2 text-paper">
+            Library
+          </h2>
+          <Link to="/wizard" className="btn-primary">
+            New Brief +
+          </Link>
+        </div>
+      </header>
 
-      <div className="bg-surface-900 rounded-xl border border-surface-700/60 p-4 flex flex-col sm:flex-row gap-3">
-        <input
-          type="search"
-          className="input-dark"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search saved projects..."
-        />
-        <select
-          className="input-dark sm:max-w-44"
-          value={platform}
-          onChange={(event) =>
-            setPlatform(event.target.value as (typeof PLATFORM_OPTIONS)[number])
-          }
-        >
-          {PLATFORM_OPTIONS.map((option) => (
-            <option key={option} value={option}>
-              {option === 'all' ? 'All platforms' : option.charAt(0).toUpperCase() + option.slice(1)}
-            </option>
-          ))}
-        </select>
+      {/* Toolbar */}
+      <div className="flex flex-col gap-5 border-y border-ink-700 py-5">
+        <div className="flex items-center gap-3">
+          <span className="font-mono text-[11px] uppercase tracking-[0.22em] text-cyan-400 shrink-0">
+            FIND /
+          </span>
+          <input
+            type="search"
+            className="field py-1.5 border-b-0"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="search titles and descriptions…"
+          />
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="caption text-paper-mute mr-1">FILTER</span>
+          {PLATFORM_OPTIONS.map((option) => {
+            const active = platform === option
+            return (
+              <button
+                key={option}
+                onClick={() => setPlatform(option)}
+                className={[
+                  'font-mono text-[10px] uppercase tracking-[0.2em] px-2.5 py-1 rounded-sm border transition-colors duration-150',
+                  active
+                    ? 'border-cyan-400 text-paper bg-cyan-400/10'
+                    : 'border-ink-700 text-paper-mute hover:border-ink-500 hover:text-paper-dim',
+                ].join(' ')}
+              >
+                {option}
+              </button>
+            )
+          })}
+        </div>
       </div>
 
       {error && (
-        <div className="rounded-md border border-red-600/50 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+        <div className="border-l-2 border-rose pl-4 py-2 text-[13px] text-rose">
           {error}
         </div>
       )}
 
+      {/* Index list */}
       {loading ? (
-        <div className="bg-surface-900 rounded-xl border border-surface-700/60 p-8 text-center text-surface-400">
-          Loading saved projects...
-        </div>
+        <div className="caption text-paper-mute animate-pulse">Loading saved projects…</div>
       ) : filteredProjects.length === 0 ? (
-        <div className="bg-surface-900 rounded-xl border border-surface-700/60 p-8 text-center">
-          <p className="text-surface-300">
-            {projects.length === 0
-              ? 'No saved projects yet.'
-              : 'No saved projects match those filters.'}
-          </p>
+        <div className="py-16 text-center flex flex-col items-center gap-4">
+          <span className="caption text-paper-mute">
+            {projects.length === 0 ? 'No briefs on file' : 'No matches for these filters'}
+          </span>
+          {projects.length === 0 && (
+            <Link to="/wizard" className="btn-link">
+              Start your first brief
+            </Link>
+          )}
         </div>
       ) : (
-        <div className="grid gap-4">
-          {filteredProjects.map((project) => {
+        <ul className="border-t border-ink-700">
+          {filteredProjects.map((project, idx) => {
             const labels = deliverableLabels(project)
             return (
-              <article
+              <li
                 key={project.id}
-                className="bg-surface-900 rounded-xl border border-surface-700/60 p-5 flex flex-col gap-4"
+                className="group relative border-b border-ink-800 hover:bg-ink-900/40 transition-colors duration-200"
               >
-                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                  <div className="min-w-0">
-                    <h2 className="text-base font-semibold text-white truncate">
+                <Link
+                  to={`/results/${project.id}`}
+                  className="grid grid-cols-12 gap-4 items-baseline py-5 px-2 sm:px-4"
+                >
+                  <div className="col-span-1 hidden sm:block">
+                    <span className="caption text-paper-mute">{pad(idx + 1)}</span>
+                  </div>
+                  <div className="col-span-12 sm:col-span-7 min-w-0">
+                    <h3 className="font-display text-2xl leading-tight text-paper truncate group-hover:text-cyan-200 transition-colors">
                       {project.title}
-                    </h2>
-                    <p className="text-sm text-surface-400 mt-1 line-clamp-2">
+                    </h3>
+                    <p className="text-[13px] text-paper-dim mt-1 line-clamp-1">
                       {project.description}
                     </p>
+                    <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2.5 items-center">
+                      <span className="caption text-paper-mute">{project.platform}</span>
+                      <span className="text-ink-600">·</span>
+                      <span className="caption text-paper-mute">{project.complexity}</span>
+                      {labels.length > 0 && (
+                        <>
+                          <span className="text-ink-600">·</span>
+                          <span className="caption text-cyan-300">
+                            {labels.join(' / ')}
+                          </span>
+                        </>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex gap-2 shrink-0">
-                    <Link to={`/results/${project.id}`} className="btn-primary">
-                      Open
-                    </Link>
-                    <button
-                      onClick={() => handleDelete(project)}
-                      disabled={deletingId === project.id}
-                      className="btn-ghost hover:border-red-400 hover:text-red-300"
-                    >
-                      {deletingId === project.id ? 'Deleting...' : 'Delete'}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap gap-2 text-xs">
-                  <span className="rounded border border-surface-600 bg-surface-800 px-2 py-1 text-surface-300">
-                    {project.platform}
-                  </span>
-                  <span className="rounded border border-surface-600 bg-surface-800 px-2 py-1 text-surface-300">
-                    {project.complexity}
-                  </span>
-                  {labels.length > 0 ? (
-                    labels.map((label) => (
-                      <span
-                        key={label}
-                        className="rounded border border-brand-500/50 bg-brand-500/10 px-2 py-1 text-brand-300"
-                      >
-                        {label}
+                  <div className="col-span-12 sm:col-span-4 flex items-center justify-between sm:justify-end gap-4">
+                    <div className="flex flex-col items-start sm:items-end gap-0.5">
+                      <span className="caption text-paper-mute">
+                        UPD {formatDate(project.updated_at)}
                       </span>
-                    ))
-                  ) : (
-                    <span className="rounded border border-amber-600/50 bg-amber-500/10 px-2 py-1 text-amber-300">
-                      No deliverables
-                    </span>
-                  )}
-                </div>
-
-                <div className="text-xs text-surface-500">
-                  Updated {formatDate(project.updated_at)} · Created {formatDate(project.created_at)}
-                </div>
-              </article>
+                      <span className="caption text-ink-500">
+                        CRT {formatDate(project.created_at)}
+                      </span>
+                    </div>
+                  </div>
+                </Link>
+                <button
+                  onClick={(e) => {
+                    e.preventDefault()
+                    handleDelete(project)
+                  }}
+                  disabled={deletingId === project.id}
+                  className="absolute top-1/2 right-3 -translate-y-1/2 font-mono text-[10px] uppercase tracking-[0.22em] text-paper-mute hover:text-rose opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity duration-150 px-2 py-1"
+                  aria-label={`Delete ${project.title}`}
+                >
+                  {deletingId === project.id ? 'Deleting…' : '✕ Del'}
+                </button>
+              </li>
             )
           })}
-        </div>
+        </ul>
       )}
     </div>
   )
