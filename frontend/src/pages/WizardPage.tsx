@@ -363,7 +363,16 @@ export default function WizardPage() {
       {/* Step 4 */}
       {step === 4 && (
         <div className="flex flex-col gap-5">
-          <h2 className="text-lg font-semibold text-white">Model &amp; Outputs</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-white">Model &amp; Outputs</h2>
+            <button
+              onClick={loadModels}
+              disabled={!modelsLoaded}
+              className="text-xs px-3 py-1.5 rounded bg-surface-700/50 hover:bg-surface-600 border border-surface-600 text-surface-200 transition-colors disabled:opacity-50"
+            >
+              {modelsLoaded ? 'Refresh Providers' : 'Refreshing...'}
+            </button>
+          </div>
 
           {/* Model picker */}
           <div className={fieldClass}>
