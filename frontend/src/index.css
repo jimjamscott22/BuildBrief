@@ -1,167 +1,155 @@
-@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600&family=Geist:wght@300;400;500;600;700&display=swap');
-
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-@layer base {
-  html, body, #root {
-    @apply bg-ink-950 text-paper font-sans;
-    min-height: 100vh;
-  }
-
-  body {
-    font-feature-settings: 'ss01', 'ss02', 'cv11';
-    -webkit-font-smoothing: antialiased;
-    text-rendering: optimizeLegibility;
-  }
-
-  /* Atmospheric background: deep ink, blueprint grid, soft radial highlight, subtle grain */
-  body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    z-index: -2;
-    background-color: #07111f;
-    background-image:
-      radial-gradient(ellipse 70% 55% at 25% -5%, rgba(95, 180, 255, 0.12), transparent 65%),
-      linear-gradient(to right, rgba(95, 180, 255, 0.055) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(95, 180, 255, 0.055) 1px, transparent 1px);
-    background-size: auto, 32px 32px, 32px 32px;
-    background-position: 0 0, 0 0, 0 0;
-  }
-
-  body::after {
-    content: '';
-    position: fixed;
-    inset: 0;
-    z-index: -1;
-    pointer-events: none;
-    opacity: 0.05;
-    mix-blend-mode: overlay;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  }
-
-  /* Custom scrollbar — thin paper-on-ink */
-  ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-  ::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  ::-webkit-scrollbar-thumb {
-    @apply bg-ink-700 rounded-full;
-  }
-  ::-webkit-scrollbar-thumb:hover {
-    @apply bg-cyan-400;
-  }
-
-  select option {
-    @apply bg-ink-900 text-paper;
-  }
-
-  ::selection {
-    background: rgba(95, 180, 255, 0.35);
-    color: #ece6d3;
-  }
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600&family=Geist:wght@300;400;500;600;700&display=swap');\n\n@tailwind base;\n@tailwind components;\n@tailwind utilities;\n\n:root, [data-theme="default"] {
+  --color-ink-950: 7 17 31;
+  --color-ink-900: 11 22 38;
+  --color-ink-800: 18 32 58;
+  --color-ink-700: 27 44 74;
+  --color-ink-600: 42 63 99;
+  --color-ink-500: 74 100 136;
+  --color-ink-400: 107 133 168;
+  --color-paper: 236 230 211;
+  --color-paper-dim: 185 178 160;
+  --color-paper-mute: 122 116 102;
+  --color-cyan-200: 191 224 255;
+  --color-cyan-300: 143 202 255;
+  --color-cyan-400: 95 180 255;
+  --color-cyan-500: 58 152 236;
+  --color-cyan-600: 31 123 204;
+  --color-ember: 255 138 61;
+  --color-ember-dim: 198 106 45;
+  --color-rose: 240 106 106;
+  --color-rose-dim: 185 79 79;
 }
 
-@layer components {
-  /* === Buttons ============================================================ */
-
-  /* Primary CTA — solid cyan on ink, mono uppercase, no glow */
-  .btn-primary {
-    @apply inline-flex items-center justify-center gap-2
-           px-4 py-2 rounded-sm
-           bg-cyan-400 text-ink-950
-           font-mono text-[11px] font-semibold uppercase tracking-[0.18em]
-           border border-cyan-400
-           hover:bg-cyan-300 hover:border-cyan-300
-           focus:outline-none focus-visible:ring-1 focus-visible:ring-cyan-400 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-950
-           disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-cyan-400
-           transition-colors duration-200;
-  }
-
-  /* Ghost / secondary — hairline, mono uppercase */
-  .btn-ghost {
-    @apply inline-flex items-center justify-center gap-2
-           px-4 py-2 rounded-sm
-           bg-transparent text-paper-dim
-           font-mono text-[11px] font-medium uppercase tracking-[0.18em]
-           border border-ink-700
-           hover:border-cyan-400 hover:text-paper
-           focus:outline-none focus-visible:ring-1 focus-visible:ring-cyan-400 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-950
-           disabled:opacity-30 disabled:cursor-not-allowed
-           transition-colors duration-200;
-  }
-
-  /* Text-only link with a caret that translates */
-  .btn-link {
-    @apply inline-flex items-center gap-1.5
-           font-mono text-[11px] font-medium uppercase tracking-[0.18em]
-           text-paper-dim hover:text-cyan-300
-           transition-colors duration-200;
-  }
-  .btn-link::before {
-    content: '›';
-    @apply text-cyan-400 transition-transform duration-200;
-  }
-  .btn-link:hover::before {
-    transform: translateX(2px);
-  }
-
-  /* === Form fields ======================================================== */
-
-  /* Underline-style input (replaces .input-dark) */
-  .field {
-    @apply w-full bg-transparent
-           border-0 border-b border-ink-700 rounded-none
-           px-0 py-2.5
-           font-sans text-[15px] text-paper
-           placeholder:text-ink-500 placeholder:font-light
-           focus:outline-none focus:border-cyan-400
-           transition-colors duration-200;
-  }
-
-  textarea.field {
-    @apply leading-relaxed;
-  }
-
-  select.field {
-    @apply pr-8 cursor-pointer appearance-none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='none' stroke='%235fb4ff' stroke-width='1.5' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 0.25rem center;
-  }
-
-  /* Mono label above fields */
-  .label-mono {
-    @apply block font-mono text-[10px] font-medium uppercase tracking-[0.22em] text-paper-dim mb-2;
-  }
-
-  /* === Surfaces ============================================================ */
-
-  /* Hairline panel — replaces rounded-xl card */
-  .panel {
-    @apply bg-ink-900/40 backdrop-blur-[2px]
-           border border-ink-700 rounded-sm;
-  }
-
-  /* Hairline divider */
-  .hairline {
-    @apply border-t border-ink-700;
-  }
+[data-theme="github-dark"] {
+  --color-ink-950: 13 17 23;
+  --color-ink-900: 22 27 34;
+  --color-ink-800: 33 38 45;
+  --color-ink-700: 48 54 61;
+  --color-ink-600: 72 79 88;
+  --color-ink-500: 110 118 129;
+  --color-ink-400: 139 148 158;
+  --color-paper: 201 209 217;
+  --color-paper-dim: 139 148 158;
+  --color-paper-mute: 110 118 129;
+  --color-cyan-200: 165 214 255;
+  --color-cyan-300: 121 192 255;
+  --color-cyan-400: 88 166 255;
+  --color-cyan-500: 56 139 253;
+  --color-cyan-600: 31 111 235;
+  --color-ember: 210 153 34;
+  --color-ember-dim: 158 106 3;
+  --color-rose: 248 81 73;
+  --color-rose-dim: 218 54 51;
 }
 
-@layer utilities {
-  /* Small caps mono caption */
-  .caption {
-    @apply font-mono text-[10px] uppercase tracking-[0.22em] text-paper-dim;
-  }
-
-  /* Drafting "ruler" hairline — animates on mount */
-  .rule-draw {
-    @apply origin-left animate-draw-line;
-  }
+[data-theme="dracula"] {
+  --color-ink-950: 40 42 54;
+  --color-ink-900: 56 58 89;
+  --color-ink-800: 68 71 90;
+  --color-ink-700: 98 114 164;
+  --color-ink-600: 139 233 253;
+  --color-ink-500: 248 248 242;
+  --color-ink-400: 248 248 242;
+  --color-paper: 248 248 242;
+  --color-paper-dim: 191 191 191;
+  --color-paper-mute: 98 114 164;
+  --color-cyan-200: 214 179 255;
+  --color-cyan-300: 189 147 249;
+  --color-cyan-400: 189 147 249;
+  --color-cyan-500: 154 108 242;
+  --color-cyan-600: 126 76 242;
+  --color-ember: 241 250 140;
+  --color-ember-dim: 209 216 108;
+  --color-rose: 255 85 85;
+  --color-rose-dim: 255 51 51;
 }
+
+[data-theme="nord"] {
+  --color-ink-950: 46 52 64;
+  --color-ink-900: 59 66 82;
+  --color-ink-800: 67 76 94;
+  --color-ink-700: 76 86 106;
+  --color-ink-600: 216 222 233;
+  --color-ink-500: 229 233 240;
+  --color-ink-400: 236 239 244;
+  --color-paper: 236 239 244;
+  --color-paper-dim: 216 222 233;
+  --color-paper-mute: 76 86 106;
+  --color-cyan-200: 143 188 187;
+  --color-cyan-300: 136 192 208;
+  --color-cyan-400: 129 161 193;
+  --color-cyan-500: 94 129 172;
+  --color-cyan-600: 76 106 140;
+  --color-ember: 235 203 139;
+  --color-ember-dim: 208 135 112;
+  --color-rose: 191 97 106;
+  --color-rose-dim: 161 76 84;
+}
+
+[data-theme="solarized-dark"] {
+  --color-ink-950: 0 43 54;
+  --color-ink-900: 7 54 66;
+  --color-ink-800: 88 110 117;
+  --color-ink-700: 101 123 131;
+  --color-ink-600: 131 148 150;
+  --color-ink-500: 147 161 161;
+  --color-ink-400: 238 232 213;
+  --color-paper: 131 148 150;
+  --color-paper-dim: 88 110 117;
+  --color-paper-mute: 7 54 66;
+  --color-cyan-200: 42 161 152;
+  --color-cyan-300: 38 139 210;
+  --color-cyan-400: 38 139 210;
+  --color-cyan-500: 42 161 152;
+  --color-cyan-600: 31 112 163;
+  --color-ember: 181 137 0;
+  --color-ember-dim: 203 75 22;
+  --color-rose: 220 50 47;
+  --color-rose-dim: 194 39 36;
+}
+
+[data-theme="monokai"] {
+  --color-ink-950: 39 40 34;
+  --color-ink-900: 62 61 50;
+  --color-ink-800: 73 72 62;
+  --color-ink-700: 117 113 94;
+  --color-ink-600: 248 248 242;
+  --color-ink-500: 248 248 242;
+  --color-ink-400: 248 248 242;
+  --color-paper: 248 248 242;
+  --color-paper-dim: 166 226 46;
+  --color-paper-mute: 117 113 94;
+  --color-cyan-200: 102 217 239;
+  --color-cyan-300: 102 217 239;
+  --color-cyan-400: 166 226 46;
+  --color-cyan-500: 253 151 31;
+  --color-cyan-600: 230 219 116;
+  --color-ember: 230 219 116;
+  --color-ember-dim: 253 151 31;
+  --color-rose: 249 38 114;
+  --color-rose-dim: 216 30 91;
+}
+
+[data-theme="gruvbox-light"] {
+  --color-ink-950: 251 241 199;
+  --color-ink-900: 242 229 188;
+  --color-ink-800: 235 219 178;
+  --color-ink-700: 213 196 161;
+  --color-ink-600: 189 174 147;
+  --color-ink-500: 168 153 132;
+  --color-ink-400: 146 131 116;
+  --color-paper: 60 56 54;
+  --color-paper-dim: 80 73 69;
+  --color-paper-mute: 124 111 100;
+  --color-cyan-200: 131 165 152;
+  --color-cyan-300: 69 133 136;
+  --color-cyan-400: 214 93 14;
+  --color-cyan-500: 175 58 3;
+  --color-cyan-600: 177 98 134;
+  --color-ember: 215 153 33;
+  --color-ember-dim: 181 118 20;
+  --color-rose: 204 36 29;
+  --color-rose-dim: 157 0 6;
+}
+
+\n@layer base {\n  html, body, #root {\n    @apply bg-ink-950 text-paper font-sans;\n    min-height: 100vh;\n  }\n\n  body {\n    font-feature-settings: 'ss01', 'ss02', 'cv11';\n    -webkit-font-smoothing: antialiased;\n    text-rendering: optimizeLegibility;\n  }\n\n  /* Atmospheric background: deep ink, blueprint grid, soft radial highlight, subtle grain */\n  body::before {\n    content: '';\n    position: fixed;\n    inset: 0;\n    z-index: -2;\n    background-color: rgb(var(--color-ink-950));\n    background-image:\n      radial-gradient(ellipse 70% 55% at 25% -5%, rgb(var(--color-cyan-400) / 0.12), transparent 65%),\n      linear-gradient(to right, rgb(var(--color-cyan-400) / 0.055) 1px, transparent 1px),\n      linear-gradient(to bottom, rgb(var(--color-cyan-400) / 0.055) 1px, transparent 1px);\n    background-size: auto, 32px 32px, 32px 32px;\n    background-position: 0 0, 0 0, 0 0;\n  }\n\n  body::after {\n    content: '';\n    position: fixed;\n    inset: 0;\n    z-index: -1;\n    pointer-events: none;\n    opacity: 0.05;\n    mix-blend-mode: overlay;\n    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");\n  }\n\n  /* Custom scrollbar — thin paper-on-ink */\n  ::-webkit-scrollbar {\n    width: 6px;\n    height: 6px;\n  }\n  ::-webkit-scrollbar-track {\n    background: transparent;\n  }\n  ::-webkit-scrollbar-thumb {\n    @apply bg-ink-700 rounded-full;\n  }\n  ::-webkit-scrollbar-thumb:hover {\n    @apply bg-cyan-400;\n  }\n\n  select option {\n    @apply bg-ink-900 text-paper;\n  }\n\n  ::selection {\n    background: rgb(var(--color-cyan-400) / 0.35);\n    color: rgb(var(--color-paper));\n  }\n}\n\n@layer components {\n  /* === Buttons ============================================================ */\n\n  /* Primary CTA — solid cyan on ink, mono uppercase, no glow */\n  .btn-primary {\n    @apply inline-flex items-center justify-center gap-2\n           px-4 py-2 rounded-sm\n           bg-cyan-400 text-ink-950\n           font-mono text-[11px] font-semibold uppercase tracking-[0.18em]\n           border border-cyan-400\n           hover:bg-cyan-300 hover:border-cyan-300\n           focus:outline-none focus-visible:ring-1 focus-visible:ring-cyan-400 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-950\n           disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-cyan-400\n           transition-colors duration-200;\n  }\n\n  /* Ghost / secondary — hairline, mono uppercase */\n  .btn-ghost {\n    @apply inline-flex items-center justify-center gap-2\n           px-4 py-2 rounded-sm\n           bg-transparent text-paper-dim\n           font-mono text-[11px] font-medium uppercase tracking-[0.18em]\n           border border-ink-700\n           hover:border-cyan-400 hover:text-paper\n           focus:outline-none focus-visible:ring-1 focus-visible:ring-cyan-400 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-950\n           disabled:opacity-30 disabled:cursor-not-allowed\n           transition-colors duration-200;\n  }\n\n  /* Text-only link with a caret that translates */\n  .btn-link {\n    @apply inline-flex items-center gap-1.5\n           font-mono text-[11px] font-medium uppercase tracking-[0.18em]\n           text-paper-dim hover:text-cyan-300\n           transition-colors duration-200;\n  }\n  .btn-link::before {\n    content: '›';\n    @apply text-cyan-400 transition-transform duration-200;\n  }\n  .btn-link:hover::before {\n    transform: translateX(2px);\n  }\n\n  /* === Form fields ======================================================== */\n\n  /* Underline-style input (replaces .input-dark) */\n  .field {\n    @apply w-full bg-transparent\n           border-0 border-b border-ink-700 rounded-none\n           px-0 py-2.5\n           font-sans text-[15px] text-paper\n           placeholder:text-ink-500 placeholder:font-light\n           focus:outline-none focus:border-cyan-400\n           transition-colors duration-200;\n  }\n\n  textarea.field {\n    @apply leading-relaxed;\n  }\n\n  select.field {\n    @apply pr-8 cursor-pointer appearance-none;\n    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='none' stroke='%235fb4ff' stroke-width='1.5' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");\n    background-repeat: no-repeat;\n    background-position: right 0.25rem center;\n  }\n\n  /* Mono label above fields */\n  .label-mono {\n    @apply block font-mono text-[10px] font-medium uppercase tracking-[0.22em] text-paper-dim mb-2;\n  }\n\n  /* === Surfaces ============================================================ */\n\n  /* Hairline panel — replaces rounded-xl card */\n  .panel {\n    @apply bg-ink-900/40 backdrop-blur-[2px]\n           border border-ink-700 rounded-sm;\n  }\n\n  /* Hairline divider */\n  .hairline {\n    @apply border-t border-ink-700;\n  }\n}\n\n@layer utilities {\n  /* Small caps mono caption */\n  .caption {\n    @apply font-mono text-[10px] uppercase tracking-[0.22em] text-paper-dim;\n  }\n\n  /* Drafting "ruler" hairline — animates on mount */\n  .rule-draw {\n    @apply origin-left animate-draw-line;\n  }\n}

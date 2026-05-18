@@ -1,0 +1,132 @@
+[data-theme='github-dark'] {
+  --color-ink-950: 13 17 23; /* #0d1117 */
+  --color-ink-900: 22 27 34; /* #161b22 */
+  --color-ink-800: 33 38 45; /* #21262d */
+  --color-ink-700: 48 54 61; /* #30363d */
+  --color-ink-600: 72 79 88; /* #484f58 */
+  --color-ink-500: 110 118 129; /* #6e7681 */
+  --color-ink-400: 139 148 158; /* #8b949e */
+  --color-paper: 201 209 217; /* #c9d1d9 */
+  --color-paper-dim: 139 148 158; /* #8b949e */
+  --color-paper-mute: 110 118 129; /* #6e7681 */
+  --color-cyan-200: 165 214 255; /* #a5d6ff */
+  --color-cyan-300: 121 192 255; /* #79c0ff */
+  --color-cyan-400: 88 166 255; /* #58a6ff */
+  --color-cyan-500: 56 139 253; /* #388bfd */
+  --color-cyan-600: 31 111 235; /* #1f6feb */
+  --color-ember: 210 153 34; /* #d29922 */
+  --color-ember-dim: 158 106 3; /* #9e6a03 */
+  --color-rose: 248 81 73; /* #f85149 */
+  --color-rose-dim: 218 54 51; /* #da3633 */
+}
+
+[data-theme='dracula'] {
+  --color-ink-950: 40 42 54; /* #282a36 */
+  --color-ink-900: 56 58 89; /* #383a59 */
+  --color-ink-800: 68 71 90; /* #44475a */
+  --color-ink-700: 98 114 164; /* #6272a4 */
+  --color-ink-600: 139 233 253; /* #8be9fd */
+  --color-ink-500: 248 248 242; /* #f8f8f2 */
+  --color-ink-400: 248 248 242; /* #f8f8f2 */
+  --color-paper: 248 248 242; /* #f8f8f2 */
+  --color-paper-dim: 191 191 191; /* #bfbfbf */
+  --color-paper-mute: 98 114 164; /* #6272a4 */
+  --color-cyan-200: 214 179 255; /* #d6b3ff */
+  --color-cyan-300: 189 147 249; /* #bd93f9 */
+  --color-cyan-400: 189 147 249; /* #bd93f9 */
+  --color-cyan-500: 154 108 242; /* #9a6cf2 */
+  --color-cyan-600: 126 76 242; /* #7e4cf2 */
+  --color-ember: 241 250 140; /* #f1fa8c */
+  --color-ember-dim: 209 216 108; /* #d1d86c */
+  --color-rose: 255 85 85; /* #ff5555 */
+  --color-rose-dim: 255 51 51; /* #ff3333 */
+}
+
+[data-theme='nord'] {
+  --color-ink-950: 46 52 64; /* #2e3440 */
+  --color-ink-900: 59 66 82; /* #3b4252 */
+  --color-ink-800: 67 76 94; /* #434c5e */
+  --color-ink-700: 76 86 106; /* #4c566a */
+  --color-ink-600: 216 222 233; /* #d8dee9 */
+  --color-ink-500: 229 233 240; /* #e5e9f0 */
+  --color-ink-400: 236 239 244; /* #eceff4 */
+  --color-paper: 236 239 244; /* #eceff4 */
+  --color-paper-dim: 216 222 233; /* #d8dee9 */
+  --color-paper-mute: 76 86 106; /* #4c566a */
+  --color-cyan-200: 143 188 187; /* #8fbcbb */
+  --color-cyan-300: 136 192 208; /* #88c0d0 */
+  --color-cyan-400: 129 161 193; /* #81a1c1 */
+  --color-cyan-500: 94 129 172; /* #5e81ac */
+  --color-cyan-600: 76 106 140; /* #4c6a8c */
+  --color-ember: 235 203 139; /* #ebcb8b */
+  --color-ember-dim: 208 135 112; /* #d08770 */
+  --color-rose: 191 97 106; /* #bf616a */
+  --color-rose-dim: 161 76 84; /* #a14c54 */
+}
+
+[data-theme='solarized-dark'] {
+  --color-ink-950: 0 43 54; /* #002b36 */
+  --color-ink-900: 7 54 66; /* #073642 */
+  --color-ink-800: 88 110 117; /* #586e75 */
+  --color-ink-700: 101 123 131; /* #657b83 */
+  --color-ink-600: 131 148 150; /* #839496 */
+  --color-ink-500: 147 161 161; /* #93a1a1 */
+  --color-ink-400: 238 232 213; /* #eee8d5 */
+  --color-paper: 131 148 150; /* #839496 */
+  --color-paper-dim: 88 110 117; /* #586e75 */
+  --color-paper-mute: 7 54 66; /* #073642 */
+  --color-cyan-200: 42 161 152; /* #2aa198 */
+  --color-cyan-300: 38 139 210; /* #268bd2 */
+  --color-cyan-400: 38 139 210; /* #268bd2 */
+  --color-cyan-500: 42 161 152; /* #2aa198 */
+  --color-cyan-600: 31 112 163; /* #1f70a3 */
+  --color-ember: 181 137 0; /* #b58900 */
+  --color-ember-dim: 203 75 22; /* #cb4b16 */
+  --color-rose: 220 50 47; /* #dc322f */
+  --color-rose-dim: 194 39 36; /* #c22724 */
+}
+
+[data-theme='monokai'] {
+  --color-ink-950: 39 40 34; /* #272822 */
+  --color-ink-900: 62 61 50; /* #3e3d32 */
+  --color-ink-800: 73 72 62; /* #49483e */
+  --color-ink-700: 117 113 94; /* #75715e */
+  --color-ink-600: 248 248 242; /* #f8f8f2 */
+  --color-ink-500: 248 248 242; /* #f8f8f2 */
+  --color-ink-400: 248 248 242; /* #f8f8f2 */
+  --color-paper: 248 248 242; /* #f8f8f2 */
+  --color-paper-dim: 166 226 46; /* #a6e22e */
+  --color-paper-mute: 117 113 94; /* #75715e */
+  --color-cyan-200: 102 217 239; /* #66d9ef */
+  --color-cyan-300: 102 217 239; /* #66d9ef */
+  --color-cyan-400: 166 226 46; /* #a6e22e */
+  --color-cyan-500: 253 151 31; /* #fd971f */
+  --color-cyan-600: 230 219 116; /* #e6db74 */
+  --color-ember: 230 219 116; /* #e6db74 */
+  --color-ember-dim: 253 151 31; /* #fd971f */
+  --color-rose: 249 38 114; /* #f92672 */
+  --color-rose-dim: 216 30 91; /* #d81e5b */
+}
+
+[data-theme='gruvbox-light'] {
+  --color-ink-950: 251 241 199; /* #fbf1c7 */
+  --color-ink-900: 242 229 188; /* #f2e5bc */
+  --color-ink-800: 235 219 178; /* #ebdbb2 */
+  --color-ink-700: 213 196 161; /* #d5c4a1 */
+  --color-ink-600: 189 174 147; /* #bdae93 */
+  --color-ink-500: 168 153 132; /* #a89984 */
+  --color-ink-400: 146 131 116; /* #928374 */
+  --color-paper: 60 56 54; /* #3c3836 */
+  --color-paper-dim: 80 73 69; /* #504945 */
+  --color-paper-mute: 124 111 100; /* #7c6f64 */
+  --color-cyan-200: 131 165 152; /* #83a598 */
+  --color-cyan-300: 69 133 136; /* #458588 */
+  --color-cyan-400: 214 93 14; /* #d65d0e */
+  --color-cyan-500: 175 58 3; /* #af3a03 */
+  --color-cyan-600: 177 98 134; /* #b16286 */
+  --color-ember: 215 153 33; /* #d79921 */
+  --color-ember-dim: 181 118 20; /* #b57614 */
+  --color-rose: 204 36 29; /* #cc241d */
+  --color-rose-dim: 157 0 6; /* #9d0006 */
+}
+

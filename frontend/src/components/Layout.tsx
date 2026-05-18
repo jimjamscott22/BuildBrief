@@ -1,4 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom'
+import ThemePicker from './ThemePicker'
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   [
@@ -45,6 +46,7 @@ export default function Layout() {
               >
                 Resources <span aria-hidden>↗</span>
               </a>
+              <ThemePicker />
             </nav>
           </div>
 
