@@ -362,33 +362,30 @@ export default function WizardPage() {
 
       {/* Step 4 */}
       {step === 4 && (
-        <div className="flex flex-col gap-5">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-white">Model &amp; Outputs</h2>
+        <div className="flex flex-col gap-8 max-w-2xl">
+          <div className="flex items-center justify-between hairline pt-2">
+            <span className="caption text-paper">Model &amp; Outputs</span>
             <button
               onClick={loadModels}
               disabled={!modelsLoaded}
-              className="text-xs px-3 py-1.5 rounded bg-surface-700/50 hover:bg-surface-600 border border-surface-600 text-surface-200 transition-colors disabled:opacity-50"
+              className="btn-link text-[10px]"
             >
               {modelsLoaded ? 'Refresh Providers' : 'Refreshing...'}
             </button>
           </div>
 
           {/* Model picker */}
-          <div className={fieldClass}>
-            <label className={labelClass} htmlFor="model">
-              Model
-            </label>
+          <Field id="model" label="Model">
             {!modelsLoaded ? (
-              <p className="text-sm text-surface-400 animate-pulse">Loading models…</p>
+              <p className="text-[13px] text-paper-mute animate-pulse">Loading models…</p>
             ) : models.length === 0 ? (
-              <div className="rounded-md border border-amber-600/50 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
+              <div className="rounded-sm border border-ember-dim/50 bg-ember-dim/10 px-4 py-3 text-[13px] text-ember">
                 No models available. Please start LM Studio or Ollama and refresh.
               </div>
             ) : (
               <select
                 id="model"
-                className="input-dark"
+                className="field"
                 value={selectedModel}
                 onChange={(e) => setSelectedModel(e.target.value)}
               >
@@ -399,7 +396,7 @@ export default function WizardPage() {
                 ))}
               </select>
             )}
-          </div>
+          </Field>
 
             <div>
               <span className="label-mono">
