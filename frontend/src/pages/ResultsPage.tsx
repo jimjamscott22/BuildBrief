@@ -8,11 +8,13 @@ interface LocationState {
   deliverables: Deliverable
 }
 
-const TAB_CONFIG: { key: keyof Deliverable; label: string }[] = [
-  { key: 'spec', label: 'Specification' },
-  { key: 'implementation_plan', label: 'Implementation Plan' },
-  { key: 'agent_prompt', label: 'Agent Prompt' },
+const TAB_CONFIG: { key: keyof Deliverable; label: string; short: string }[] = [
+  { key: 'spec', label: 'Specification', short: 'SPEC' },
+  { key: 'implementation_plan', label: 'Implementation Plan', short: 'PLAN' },
+  { key: 'agent_prompt', label: 'Agent Prompt', short: 'PROMPT' },
 ]
+
+const pad = (n: number) => n.toString().padStart(2, '0')
 
 export default function ResultsPage() {
   const { id } = useParams<{ id: string }>()
@@ -60,32 +62,26 @@ export default function ResultsPage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 gap-5 text-center">
-        <p className="text-surface-300 text-base">Loading saved results...</p>
+      <div className="py-24 flex flex-col items-center gap-5">
+        <span className="caption text-cyan-400 animate-pulse">Loading saved results…</span>
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 gap-5 text-center">
-        <p className="text-red-300 text-base">{error}</p>
-        <Link to="/library" className="btn-primary">
-          Back to Library
-        </Link>
+      <div className="py-24 flex flex-col items-center gap-5">
+        <p className="text-rose">{error}</p>
+        <Link to="/library" className="btn-ghost">← Back to Library</Link>
       </div>
     )
   }
 
   if (!deliverables || availableTabs.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 gap-5 text-center">
-        <p className="text-surface-300 text-base">
-          No generated deliverables to display for this project.
-        </p>
-        <Link to="/library" className="btn-primary">
-          Back to Library
-        </Link>
+      <div className="py-24 flex flex-col items-center gap-5">
+        <span className="caption text-paper-mute">No generated deliverables to display.</span>
+        <Link to="/library" className="btn-ghost">← Back to Library</Link>
       </div>
     )
   }
@@ -104,75 +100,99 @@ export default function ResultsPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      {/* Top bar */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-lg font-semibold text-white">
+    <div className="flex flex-col gap-10">
+      {/* Hero */}
+      <header className="flex flex-col gap-4 pt-2">
+        <div className="flex items-center gap-3 flex-wrap">
+          <span className="caption text-cyan-400">DRAFT</span>
+          <span className="h-px w-10 bg-cyan-400/50" />
+          {id && (
+            <span className="caption text-paper-mute">
+              #{id.slice(0, 8)}
+            </span>
+          )}
+        </div>
+        <div className="flex items-end justify-between gap-6 flex-wrap">
+          <h2 className="font-display italic text-[2.5rem] sm:text-[3.25rem] leading-[0.95] tracking-tighter-2 text-paper max-w-3xl">
             {project?.title ?? 'Results'}
-            {id ? <span className="text-surface-400 font-normal text-sm ml-2">#{id}</span> : ''}
-          </h1>
+          </h2>
+          <div className="flex gap-2">
+            <Link to="/library" className="btn-ghost">Library</Link>
+            <Link to="/wizard" className="btn-ghost">Start Over</Link>
+          </div>
         </div>
-        <div className="flex gap-3">
-          <Link to="/library" className="btn-ghost">
-            Library
-          </Link>
-          <Link to="/wizard" className="btn-ghost">
-            Start Over
-          </Link>
-        </div>
-      </div>
+      </header>
 
-      {/* Tab bar */}
-      <div className="border-b border-surface-700">
-        <nav className="-mb-px flex gap-1" aria-label="Tabs">
-          {availableTabs.map(({ key, label }) => {
-            const isActive = activeTab === key
-            return (
-              <button
-                key={key}
-                onClick={() => setActiveTab(key)}
-                className={`px-5 py-2.5 text-sm font-medium border-b-2 transition-all duration-200 whitespace-nowrap rounded-t-md ${
-                  isActive
-                    ? 'border-brand-400 text-brand-300 bg-brand-500/10'
-                    : 'border-transparent text-surface-400 hover:text-slate-300 hover:border-surface-500 hover:bg-surface-800/50'
-                }`}
-              >
-                {label}
+      {/* Document layout: side rail + content */}
+      <div className="grid grid-cols-12 gap-8 border-t border-ink-700 pt-8">
+        {/* Side rail */}
+        <aside className="col-span-12 md:col-span-3">
+          <div className="md:sticky md:top-8 flex flex-col gap-6">
+            <span className="caption text-paper-mute">Sections</span>
+            <nav className="flex flex-col">
+              {availableTabs.map(({ key, label, short }, idx) => {
+                const active = activeTab === key
+                return (
+                  <button
+                    key={key}
+                    onClick={() => setActiveTab(key)}
+                    className={[
+                      'group flex items-start gap-3 py-3 pl-4 pr-2 border-l-2 text-left transition-colors duration-200',
+                      active
+                        ? 'border-l-cyan-400 bg-cyan-400/[0.04]'
+                        : 'border-l-ink-700 hover:border-l-ink-500 hover:bg-ink-900/40',
+                    ].join(' ')}
+                  >
+                    <span className={['font-mono text-[10px] tracking-[0.22em] mt-1', active ? 'text-cyan-400' : 'text-paper-mute'].join(' ')}>
+                      {pad(idx + 1)}
+                    </span>
+                    <span className="flex flex-col leading-tight min-w-0">
+                      <span className={['font-display text-lg', active ? 'text-paper' : 'text-paper-dim group-hover:text-paper'].join(' ')}>
+                        {label}
+                      </span>
+                      <span className="caption text-paper-mute mt-0.5">{short}</span>
+                    </span>
+                  </button>
+                )
+              })}
+            </nav>
+
+            <div className="hairline pt-4">
+              <button onClick={handleDownload} className="btn-ghost w-full">
+                ↓ Export .md
               </button>
-            )
-          })}
-        </nav>
-      </div>
+            </div>
+          </div>
+        </aside>
 
-      {/* Markdown content */}
-      <div className="bg-surface-900 rounded-xl border border-surface-700/60 p-6 overflow-auto max-h-[60vh] shadow-[inset_0_2px_20px_rgba(0,0,0,0.3)]">
-        <div className="prose prose-invert prose-sm max-w-none
-          prose-headings:text-slate-100 prose-headings:font-semibold
-          prose-p:text-slate-300 prose-p:leading-relaxed
-          prose-a:text-brand-300 prose-a:no-underline hover:prose-a:underline
-          prose-strong:text-slate-100
-          prose-code:text-brand-300 prose-code:bg-surface-800 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-xs
-          prose-pre:bg-surface-800 prose-pre:border prose-pre:border-surface-600
-          prose-blockquote:border-l-brand-500 prose-blockquote:text-surface-300
-          prose-li:text-slate-300
-          prose-hr:border-surface-700
-          prose-th:text-slate-200 prose-td:text-slate-300
-          prose-table:border-surface-700">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>
-            {content}
-          </ReactMarkdown>
+        {/* Document */}
+        <div className="col-span-12 md:col-span-9">
+          <article
+            className="prose prose-invert max-w-none
+              font-sans
+              prose-headings:font-display prose-headings:italic prose-headings:font-normal prose-headings:text-paper prose-headings:tracking-tighter-2
+              prose-h1:text-4xl prose-h1:leading-[1.05] prose-h1:mt-0
+              prose-h2:text-3xl prose-h2:leading-[1.1] prose-h2:mt-12 prose-h2:mb-4 prose-h2:not-italic
+              prose-h3:text-xl prose-h3:not-italic prose-h3:font-medium prose-h3:font-sans prose-h3:uppercase prose-h3:tracking-[0.18em] prose-h3:text-paper-dim prose-h3:mt-8
+              prose-p:text-paper prose-p:leading-[1.75] prose-p:text-[15px]
+              prose-a:text-cyan-300 prose-a:no-underline prose-a:border-b prose-a:border-cyan-300/40 hover:prose-a:border-cyan-300
+              prose-strong:text-paper prose-strong:font-semibold
+              prose-em:text-paper-dim
+              prose-code:font-mono prose-code:text-[12px] prose-code:text-cyan-200 prose-code:bg-ink-900 prose-code:border prose-code:border-ink-700 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-sm prose-code:before:content-none prose-code:after:content-none
+              prose-pre:bg-ink-900 prose-pre:border prose-pre:border-ink-700 prose-pre:rounded-sm prose-pre:text-[12px] prose-pre:leading-relaxed
+              prose-blockquote:border-l-2 prose-blockquote:border-cyan-400 prose-blockquote:bg-transparent prose-blockquote:not-italic prose-blockquote:text-paper-dim prose-blockquote:pl-5
+              prose-li:text-paper prose-li:my-1
+              prose-ul:my-4 prose-ol:my-4
+              prose-hr:border-ink-700
+              prose-th:font-mono prose-th:text-[10px] prose-th:uppercase prose-th:tracking-[0.18em] prose-th:text-paper-dim prose-th:border-ink-700
+              prose-td:text-paper prose-td:border-ink-800
+              prose-table:border-collapse"
+          >
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {content}
+            </ReactMarkdown>
+          </article>
         </div>
-      </div>
-
-      {/* Download button */}
-      <div className="flex justify-end">
-        <button onClick={handleDownload} className="btn-primary flex items-center gap-2">
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4" />
-          </svg>
-          Download .md
-        </button>
       </div>
     </div>
   )
