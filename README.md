@@ -176,6 +176,23 @@ Once both servers are running:
 
 If you want architecture and product context before running the app, start with the docs linked below.
 
+### Running with Docker
+
+You can also run the application using the included Docker Compose configuration. Ensure you have Docker installed and have already set up your `backend/.env` file as described above.
+
+```bash
+docker compose up -d
+```
+
+Once the containers are running:
+- Open `http://localhost:5173` for the frontend
+- Check `http://localhost:8001/api/health` for the backend health endpoint
+
+To stop the containers, run:
+```bash
+docker compose down
+```
+
 ## Repository Docs
 
 - [Project spec](docs/project-spec.md)
