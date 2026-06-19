@@ -1,6 +1,6 @@
 from app import storage
 from app.models import Deliverable
-from app.schemas import ProjectCreate
+from app.schemas import ProjectCreate, ProjectUpdate
 
 
 def setup_function():
@@ -43,3 +43,51 @@ def test_project_lifecycle_persists_deliverables():
     assert storage.delete_project(project.id) is True
     assert storage.get_project(project.id) is None
     assert storage.delete_project(project.id) is False
+
+
+def test_update_project_and_query_projects():
+    web_project = storage.create_project(
+        ProjectCreate(
+            title="Planning Desk",
+            description="Collaborative planning app",
+            target_users="Founders",
+            platform="web",
+            complexity="medium",
+        )
+    )
+    storage.create_project(
+        ProjectCreate(
+            title="CLI Notes",
+            description="Terminal notes app",
+            target_users="Developers",
+            platform="cli",
+            complexity="simple",
+        )
+    )
+
+    updated = storage.update_project(
+        web_project.id,
+        ProjectUpdate(
+            title="Planning Desk Pro",
+            description="Collaborative planning app with exports",
+            target_users="Startup teams",
+            platform="web",
+            tech_preferences="React",
+            complexity="complex",
+            constraints="Private beta",
+            extra_context="Ship quickly",
+        ),
+    )
+
+    assert updated is not None
+    assert updated.title == "Planning Desk Pro"
+    assert updated.complexity == "complex"
+
+    web_results = storage.list_projects(platform="web")
+    query_results = storage.list_projects(q="terminal")
+    limited_results = storage.list_projects(limit=1)
+
+    assert [project.id for project in web_results] == [web_project.id]
+    assert len(query_results) == 1
+    assert query_results[0].title == "CLI Notes"
+    assert len(limited_results) == 1

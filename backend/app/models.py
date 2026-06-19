@@ -1,6 +1,8 @@
 from datetime import datetime
 from pydantic import BaseModel
 
+DeliverableKey = str
+
 
 class Project(BaseModel):
     id: str
@@ -39,3 +41,20 @@ class ProjectSummary(BaseModel):
 class ProjectWithDeliverables(BaseModel):
     project: Project
     deliverables: Deliverable | None = None
+
+
+class ProviderStatus(BaseModel):
+    id: str
+    label: str
+    available: bool
+    models: list[str]
+    message: str
+
+
+class ModelsResponse(BaseModel):
+    models: list[str]
+    providers: list[ProviderStatus]
+
+
+class RefinementResponse(BaseModel):
+    questions: list[str]

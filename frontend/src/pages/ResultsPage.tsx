@@ -1,69 +1,95 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useParams, useLocation, Link } from 'react-router-dom'
+import { Link, useLocation, useParams } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { Deliverable, getProject, Project } from '../api'
+import { Deliverable, DeliverableKey, getProject, Project } from '../api'
+import { availableDeliverables, buildBundleMarkdown } from '../deliverables'
 
 interface LocationState {
   deliverables: Deliverable
+  project?: Partial<Project>
 }
 
-const TAB_CONFIG: { key: keyof Deliverable; label: string; short: string }[] = [
-  { key: 'spec', label: 'Specification', short: 'SPEC' },
-  { key: 'implementation_plan', label: 'Implementation Plan', short: 'PLAN' },
-  { key: 'agent_prompt', label: 'Agent Prompt', short: 'PROMPT' },
-]
-
 const pad = (n: number) => n.toString().padStart(2, '0')
+
+function downloadMarkdown(filename: string, content: string) {
+  const blob = new Blob([content], { type: 'text/markdown' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
+}
 
 export default function ResultsPage() {
   const { id } = useParams<{ id: string }>()
   const location = useLocation()
   const state = location.state as LocationState | null
-  const [project, setProject] = useState<Project | null>(null)
+  const [project, setProject] = useState<Project | null>(
+    state?.project && id
+      ? {
+          id,
+          title: state.project.title ?? 'Results',
+          description: state.project.description ?? '',
+          target_users: state.project.target_users ?? '',
+          platform: state.project.platform ?? 'web',
+          tech_preferences: state.project.tech_preferences ?? '',
+          complexity: state.project.complexity ?? 'medium',
+          constraints: state.project.constraints ?? '',
+          extra_context: state.project.extra_context ?? '',
+          created_at: state.project.created_at ?? '',
+          updated_at: state.project.updated_at ?? '',
+        }
+      : null
+  )
   const [fetchedDeliverables, setFetchedDeliverables] = useState<Deliverable | null>(null)
-  const [loading, setLoading] = useState(!state?.deliverables)
+  const [loading, setLoading] = useState(!state?.deliverables || !state?.project)
   const [error, setError] = useState('')
 
   useEffect(() => {
-    if (!id || state?.deliverables) return
+    if (!id) return
 
-    setLoading(true)
+    let ignore = false
+    if (!state?.deliverables || !state?.project) {
+      setLoading(true)
+    }
     setError('')
     getProject(id)
       .then((record) => {
+        if (ignore) return
         setProject(record.project)
         setFetchedDeliverables(record.deliverables)
       })
-      .catch(() => setError('Could not load that saved project.'))
-      .finally(() => setLoading(false))
-  }, [id, state?.deliverables])
+      .catch(() => {
+        if (!ignore) setError('Could not load that saved project.')
+      })
+      .finally(() => {
+        if (!ignore) setLoading(false)
+      })
+    return () => {
+      ignore = true
+    }
+  }, [id, state?.deliverables, state?.project])
 
   const deliverables = state?.deliverables ?? fetchedDeliverables ?? undefined
-
-  const availableTabs = useMemo(
-    () => TAB_CONFIG.filter((t) => deliverables && deliverables[t.key] != null),
-    [deliverables]
-  )
-
-  const [activeTab, setActiveTab] = useState<keyof Deliverable | null>(
-    availableTabs.length > 0 ? availableTabs[0].key : null
-  )
+  const tabs = useMemo(() => availableDeliverables(deliverables), [deliverables])
+  const [activeTab, setActiveTab] = useState<DeliverableKey | null>(null)
 
   useEffect(() => {
-    if (availableTabs.length === 0) {
+    if (tabs.length === 0) {
       setActiveTab(null)
       return
     }
-    if (!activeTab || !availableTabs.some((tab) => tab.key === activeTab)) {
-      setActiveTab(availableTabs[0].key)
+    if (!activeTab || !tabs.some((tab) => tab.key === activeTab)) {
+      setActiveTab(tabs[0].key)
     }
-  }, [activeTab, availableTabs])
+  }, [activeTab, tabs])
 
   if (loading) {
     return (
       <div className="py-24 flex flex-col items-center gap-5">
-        <span className="caption text-cyan-400 animate-pulse">Loading saved results…</span>
+        <span className="caption text-cyan-400 animate-pulse">Loading saved results...</span>
       </div>
     )
   }
@@ -72,65 +98,60 @@ export default function ResultsPage() {
     return (
       <div className="py-24 flex flex-col items-center gap-5">
         <p className="text-rose">{error}</p>
-        <Link to="/library" className="btn-ghost">← Back to Library</Link>
+        <Link to="/library" className="btn-ghost">Back to Library</Link>
       </div>
     )
   }
 
-  if (!deliverables || availableTabs.length === 0) {
+  if (!deliverables || tabs.length === 0) {
     return (
       <div className="py-24 flex flex-col items-center gap-5">
         <span className="caption text-paper-mute">No generated deliverables to display.</span>
-        <Link to="/library" className="btn-ghost">← Back to Library</Link>
+        <Link to="/library" className="btn-ghost">Back to Library</Link>
       </div>
     )
   }
 
+  const activeConfig = tabs.find((tab) => tab.key === activeTab)
   const content = activeTab ? (deliverables[activeTab] ?? '') : ''
+  const title = project?.title ?? 'Results'
 
   function handleDownload() {
-    if (!activeTab) return
-    const blob = new Blob([content], { type: 'text/markdown' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `${activeTab}.md`
-    a.click()
-    URL.revokeObjectURL(url)
+    if (!activeConfig) return
+    downloadMarkdown(activeConfig.filename, content)
+  }
+
+  function handleBundleDownload() {
+    if (!deliverables) return
+    downloadMarkdown('buildbrief-bundle.md', buildBundleMarkdown(title, deliverables))
   }
 
   return (
     <div className="flex flex-col gap-10">
-      {/* Hero */}
       <header className="flex flex-col gap-4 pt-2">
         <div className="flex items-center gap-3 flex-wrap">
           <span className="caption text-cyan-400">DRAFT</span>
           <span className="h-px w-10 bg-cyan-400/50" />
-          {id && (
-            <span className="caption text-paper-mute">
-              #{id.slice(0, 8)}
-            </span>
-          )}
+          {id && <span className="caption text-paper-mute">#{id.slice(0, 8)}</span>}
         </div>
         <div className="flex items-end justify-between gap-6 flex-wrap">
           <h2 className="font-display italic text-[2.5rem] sm:text-[3.25rem] leading-[0.95] tracking-tighter-2 text-paper max-w-3xl">
-            {project?.title ?? 'Results'}
+            {title}
           </h2>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
+            {id && <Link to={`/wizard?edit=${id}`} className="btn-ghost">Edit Brief</Link>}
             <Link to="/library" className="btn-ghost">Library</Link>
             <Link to="/wizard" className="btn-ghost">Start Over</Link>
           </div>
         </div>
       </header>
 
-      {/* Document layout: side rail + content */}
       <div className="grid grid-cols-12 gap-8 border-t border-ink-700 pt-8">
-        {/* Side rail */}
         <aside className="col-span-12 md:col-span-3">
           <div className="md:sticky md:top-8 flex flex-col gap-6">
             <span className="caption text-paper-mute">Sections</span>
             <nav className="flex flex-col">
-              {availableTabs.map(({ key, label, short }, idx) => {
+              {tabs.map(({ key, label, short }, idx) => {
                 const active = activeTab === key
                 return (
                   <button
@@ -157,15 +178,17 @@ export default function ResultsPage() {
               })}
             </nav>
 
-            <div className="hairline pt-4">
+            <div className="hairline pt-4 flex flex-col gap-2">
               <button onClick={handleDownload} className="btn-ghost w-full">
-                ↓ Export .md
+                Export Current
+              </button>
+              <button onClick={handleBundleDownload} className="btn-ghost w-full">
+                Export Bundle
               </button>
             </div>
           </div>
         </aside>
 
-        {/* Document */}
         <div className="col-span-12 md:col-span-9">
           <article
             className="prose prose-invert max-w-none
@@ -188,9 +211,7 @@ export default function ResultsPage() {
               prose-td:text-paper prose-td:border-ink-800
               prose-table:border-collapse"
           >
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-              {content}
-            </ReactMarkdown>
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
           </article>
         </div>
       </div>

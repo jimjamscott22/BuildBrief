@@ -1,19 +1,42 @@
 const BASE = '/api'
 
-export async function fetchModels(): Promise<string[]> {
-  const res = await fetch(`${BASE}/models`)
-  if (!res.ok) throw new Error('Failed to fetch models')
-  const data = await res.json()
-  return data.models as string[]
+export type Platform = 'web' | 'mobile' | 'desktop' | 'cli'
+export type Complexity = 'simple' | 'medium' | 'complex'
+export type DeliverableKey = 'spec' | 'implementation_plan' | 'agent_prompt'
+
+export class ApiError extends Error {
+  status: number
+
+  constructor(message: string, status: number) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
+  }
+}
+
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, init)
+  if (!res.ok) {
+    let message = `Request failed with status ${res.status}`
+    try {
+      const body = await res.json()
+      if (typeof body.detail === 'string') message = body.detail
+    } catch {
+      // Keep the status-based fallback.
+    }
+    throw new ApiError(message, res.status)
+  }
+  if (res.status === 204) return undefined as T
+  return res.json()
 }
 
 export interface ProjectCreate {
   title: string
   description: string
   target_users: string
-  platform: string
+  platform: Platform
   tech_preferences: string
-  complexity: string
+  complexity: Complexity
   constraints: string
   extra_context: string
 }
@@ -29,8 +52,8 @@ export interface ProjectSummary {
   title: string
   description: string
   target_users: string
-  platform: string
-  complexity: string
+  platform: Platform
+  complexity: Complexity
   created_at: string
   updated_at: string
   has_spec: boolean
@@ -40,56 +63,99 @@ export interface ProjectSummary {
 
 export interface GenerateRequest {
   model: string
-  deliverables: string[]
+  deliverables: DeliverableKey[]
+  preset?: string
 }
 
-export interface Deliverable {
-  spec?: string
-  implementation_plan?: string
-  agent_prompt?: string
-}
+export type Deliverable = Partial<Record<DeliverableKey, string>>
 
 export interface ProjectWithDeliverables {
   project: Project
   deliverables: Deliverable | null
 }
 
+export interface ProviderStatus {
+  id: string
+  label: string
+  available: boolean
+  models: string[]
+  message: string
+}
+
+export interface ModelsResponse {
+  models: string[]
+  providers: ProviderStatus[]
+}
+
+export interface ListProjectsParams {
+  q?: string
+  platform?: Platform | 'all'
+  limit?: number
+  offset?: number
+}
+
+function queryString(params: ListProjectsParams) {
+  const search = new URLSearchParams()
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== '' && value !== 'all') {
+      search.set(key, String(value))
+    }
+  })
+  const text = search.toString()
+  return text ? `?${text}` : ''
+}
+
+export async function fetchModels(): Promise<ModelsResponse> {
+  return request<ModelsResponse>('/models')
+}
+
 export async function createProject(data: ProjectCreate): Promise<{ id: string }> {
-  const res = await fetch(`${BASE}/projects`, {
+  return request<{ id: string }>('/projects', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   })
-  if (!res.ok) throw new Error('Failed to create project')
-  return res.json()
 }
 
-export async function listProjects(): Promise<ProjectSummary[]> {
-  const res = await fetch(`${BASE}/projects`)
-  if (!res.ok) throw new Error('Failed to list projects')
-  return res.json()
+export async function updateProject(
+  id: string,
+  data: ProjectCreate
+): Promise<ProjectWithDeliverables> {
+  return request<ProjectWithDeliverables>(`/projects/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+}
+
+export async function listProjects(params: ListProjectsParams = {}): Promise<ProjectSummary[]> {
+  return request<ProjectSummary[]>(`/projects${queryString(params)}`)
 }
 
 export async function getProject(id: string): Promise<ProjectWithDeliverables> {
-  const res = await fetch(`${BASE}/projects/${id}`)
-  if (!res.ok) throw new Error('Failed to fetch project')
-  return res.json()
+  return request<ProjectWithDeliverables>(`/projects/${id}`)
 }
 
 export async function deleteProject(id: string): Promise<void> {
-  const res = await fetch(`${BASE}/projects/${id}`, { method: 'DELETE' })
-  if (!res.ok) throw new Error('Failed to delete project')
+  return request<void>(`/projects/${id}`, { method: 'DELETE' })
 }
 
 export async function generateDeliverables(
   id: string,
   req: GenerateRequest
 ): Promise<Deliverable> {
-  const res = await fetch(`${BASE}/projects/${id}/generate`, {
+  return request<Deliverable>(`/projects/${id}/generate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(req),
   })
-  if (!res.ok) throw new Error('Failed to generate deliverables')
-  return res.json()
+}
+
+export async function refineProject(id: string, model: string): Promise<string[]> {
+  const data = await request<{ questions: string[] }>(`/projects/${id}/refine`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model }),
+  })
+  return data.questions
 }

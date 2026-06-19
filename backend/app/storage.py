@@ -3,11 +3,11 @@ import uuid
 from datetime import UTC, datetime
 
 from dotenv import load_dotenv
-from sqlalchemy import DateTime, ForeignKey, String, Text, create_engine, select
+from sqlalchemy import DateTime, ForeignKey, String, Text, create_engine, or_, select
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 
 from app.models import Deliverable, Project, ProjectSummary, ProjectWithDeliverables
-from app.schemas import ProjectCreate
+from app.schemas import ProjectCreate, ProjectUpdate
 
 load_dotenv()
 
@@ -117,6 +117,19 @@ def create_project(body: ProjectCreate) -> Project:
         return _to_project(record)
 
 
+def update_project(project_id: str, body: ProjectUpdate) -> Project | None:
+    with _session() as session:
+        record = session.get(ProjectRecord, project_id)
+        if record is None:
+            return None
+
+        for field, value in body.model_dump().items():
+            setattr(record, field, value)
+        record.updated_at = datetime.now(UTC)
+        session.commit()
+        return _to_project(record)
+
+
 def get_project(project_id: str) -> ProjectWithDeliverables | None:
     with _session() as session:
         project = session.get(ProjectRecord, project_id)
@@ -129,15 +142,40 @@ def get_project(project_id: str) -> ProjectWithDeliverables | None:
         )
 
 
-def list_projects() -> list[ProjectSummary]:
+def list_projects(
+    q: str | None = None,
+    platform: str | None = None,
+    limit: int = 100,
+    offset: int = 0,
+) -> list[ProjectSummary]:
     with _session() as session:
-        rows = session.execute(
+        statement = (
             select(ProjectRecord, DeliverableRecord)
             .outerjoin(
                 DeliverableRecord,
                 ProjectRecord.id == DeliverableRecord.project_id,
             )
+        )
+
+        normalized_q = q.strip() if q else ""
+        if normalized_q:
+            pattern = f"%{normalized_q}%"
+            statement = statement.where(
+                or_(
+                    ProjectRecord.title.ilike(pattern),
+                    ProjectRecord.description.ilike(pattern),
+                )
+            )
+        if platform and platform != "all":
+            statement = statement.where(ProjectRecord.platform == platform)
+
+        limit = min(max(limit, 1), 100)
+        offset = max(offset, 0)
+        rows = session.execute(
+            statement
             .order_by(ProjectRecord.updated_at.desc(), ProjectRecord.created_at.desc())
+            .limit(limit)
+            .offset(offset)
         ).all()
         return [
             ProjectSummary(

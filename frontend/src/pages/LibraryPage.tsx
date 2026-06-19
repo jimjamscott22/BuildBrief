@@ -30,11 +30,22 @@ export default function LibraryPage() {
   const [deletingId, setDeletingId] = useState('')
 
   useEffect(() => {
-    listProjects()
-      .then(setProjects)
-      .catch(() => setError('Could not load your saved projects.'))
-      .finally(() => setLoading(false))
-  }, [])
+    let ignore = false
+    setLoading(true)
+    listProjects({ q: query, platform, limit: 100 })
+      .then((items) => {
+        if (!ignore) setProjects(items)
+      })
+      .catch(() => {
+        if (!ignore) setError('Could not load your saved projects.')
+      })
+      .finally(() => {
+        if (!ignore) setLoading(false)
+      })
+    return () => {
+      ignore = true
+    }
+  }, [platform, query])
 
   const filteredProjects = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase()
@@ -188,6 +199,13 @@ export default function LibraryPage() {
                       </span>
                     </div>
                   </div>
+                </Link>
+                <Link
+                  to={`/wizard?edit=${project.id}`}
+                  className="absolute top-1/2 right-20 -translate-y-1/2 font-mono text-[10px] uppercase tracking-[0.22em] text-paper-mute hover:text-cyan-300 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity duration-150 px-2 py-1"
+                  aria-label={`Edit ${project.title}`}
+                >
+                  Edit
                 </Link>
                 <button
                   onClick={(e) => {

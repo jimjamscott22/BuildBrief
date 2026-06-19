@@ -1,42 +1,14 @@
-from fastapi import APIRouter, HTTPException
+from typing import Annotated
 
-from app import providers, storage
-from app.models import Deliverable, Project, ProjectSummary, ProjectWithDeliverables
-from app.schemas import GenerateRequest, ProjectCreate
+from fastapi import APIRouter, HTTPException, Query
+
+from app import storage
+from app.models import ProjectSummary, ProjectWithDeliverables, RefinementResponse
+from app.schemas import GenerateRequest, ProjectCreate, ProjectUpdate, RefineRequest
+from app.services.deliverables import generate_deliverables as generate_project_deliverables
+from app.services.deliverables import refine_project
 
 router = APIRouter()
-
-DELIVERABLE_PROMPTS = {
-    "spec": (
-        "You are a senior software architect. Using the project details above, write a detailed "
-        "project specification document in Markdown. Include: overview, problem statement, goals, "
-        "target users, core features, non-goals, MVP scope, data model, API plan, risks."
-    ),
-    "implementation_plan": (
-        "You are a senior software engineer. Using the project details above, write a detailed "
-        "implementation plan in Markdown. Include: phases, tasks per phase, milestones, required "
-        "resources. Focus on practical steps to build the MVP."
-    ),
-    "agent_prompt": (
-        "You are an AI prompt engineer. Using the project details above, write a comprehensive "
-        "coding agent prompt in Markdown. The prompt should give an AI coding assistant everything "
-        "it needs to begin implementing this project: context, goals, constraints, tech stack, and "
-        "initial tasks."
-    ),
-}
-
-
-def _system_context(project: Project) -> str:
-    return (
-        f"Project: {project.title}\n"
-        f"Description: {project.description}\n"
-        f"Target users: {project.target_users}\n"
-        f"Platform: {project.platform}\n"
-        f"Tech preferences: {project.tech_preferences}\n"
-        f"Complexity: {project.complexity}\n"
-        f"Constraints: {project.constraints}\n"
-        f"Extra context: {project.extra_context}"
-    )
 
 
 @router.post("", status_code=201)
@@ -46,12 +18,28 @@ async def create_project(body: ProjectCreate):
 
 
 @router.get("", response_model=list[ProjectSummary])
-async def list_projects():
-    return storage.list_projects()
+async def list_projects(
+    q: Annotated[str | None, Query(max_length=100)] = None,
+    platform: str | None = None,
+    limit: Annotated[int, Query(ge=1, le=100)] = 100,
+    offset: Annotated[int, Query(ge=0)] = 0,
+):
+    return storage.list_projects(q=q, platform=platform, limit=limit, offset=offset)
 
 
 @router.get("/{project_id}", response_model=ProjectWithDeliverables)
 async def get_project(project_id: str):
+    record = storage.get_project(project_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return record
+
+
+@router.put("/{project_id}", response_model=ProjectWithDeliverables)
+async def update_project(project_id: str, body: ProjectUpdate):
+    project = storage.update_project(project_id, body)
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
     record = storage.get_project(project_id)
     if record is None:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -72,28 +60,22 @@ async def generate_deliverables(project_id: str, body: GenerateRequest):
     if record is None:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    project = record.project
-    context = _system_context(project)
-
-    existing = record.deliverables or Deliverable()
-    updates: dict = existing.model_dump()
-
-    for deliverable_name in body.deliverables:
-        instruction = DELIVERABLE_PROMPTS.get(deliverable_name)
-        if instruction is None:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Unknown deliverable: {deliverable_name}. "
-                       f"Valid options: {list(DELIVERABLE_PROMPTS.keys())}",
-            )
-        prompt = f"{context}\n\n{instruction}"
-        try:
-            result = await providers.generate(body.model, prompt)
-        except Exception as exc:
-            raise HTTPException(status_code=502, detail="LLM generation failed") from exc
-        updates[deliverable_name] = result
-
-    deliverable = storage.save_deliverables(project_id, Deliverable(**updates))
+    generated = await generate_project_deliverables(
+        project=record.project,
+        existing=record.deliverables,
+        model=body.model,
+        deliverable_keys=body.deliverables,
+        preset=body.preset,
+    )
+    deliverable = storage.save_deliverables(project_id, generated)
     if deliverable is None:
         raise HTTPException(status_code=404, detail="Project not found")
     return deliverable
+
+
+@router.post("/{project_id}/refine", response_model=RefinementResponse)
+async def refine_project_questions(project_id: str, body: RefineRequest):
+    record = storage.get_project(project_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return await refine_project(record.project, body.model)

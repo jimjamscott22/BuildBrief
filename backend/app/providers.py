@@ -8,6 +8,8 @@ import os
 import httpx
 from dotenv import load_dotenv
 
+from app.models import ModelsResponse, ProviderStatus
+
 load_dotenv()
 
 LM_STUDIO_URL = os.getenv("LM_STUDIO_URL", "http://localhost:1234")
@@ -28,6 +30,20 @@ class LMStudioProvider:
                 return [f"lmstudio/{m['id']}" for m in data.get("data", [])]
         except Exception:
             return []
+
+    async def status(self) -> ProviderStatus:
+        models = await self.list_models()
+        return ProviderStatus(
+            id="lmstudio",
+            label="LM Studio",
+            available=bool(models),
+            models=models,
+            message=(
+                f"{len(models)} model{'s' if len(models) != 1 else ''} available."
+                if models
+                else "LM Studio is not reachable at the configured URL."
+            ),
+        )
 
     async def generate(self, model_id: str, prompt: str) -> str:
         """
@@ -60,6 +76,20 @@ class OllamaProvider:
         except Exception:
             return []
 
+    async def status(self) -> ProviderStatus:
+        models = await self.list_models()
+        return ProviderStatus(
+            id="ollama",
+            label="Ollama",
+            available=bool(models),
+            models=models,
+            message=(
+                f"{len(models)} model{'s' if len(models) != 1 else ''} available."
+                if models
+                else "Ollama is not reachable at the configured URL."
+            ),
+        )
+
     async def generate(self, model_name: str, prompt: str) -> str:
         """
         Call /api/generate with the given prompt (non-streaming).
@@ -85,6 +115,16 @@ async def list_all_models() -> list[str]:
         ollama.list_models(),
     )
     return lm_models + ol_models
+
+
+async def get_model_status() -> ModelsResponse:
+    """Probe both providers concurrently; return model list plus per-provider status."""
+    import asyncio
+    statuses = await asyncio.gather(lmstudio.status(), ollama.status())
+    return ModelsResponse(
+        models=[model for status in statuses for model in status.models],
+        providers=list(statuses),
+    )
 
 
 async def generate(prefixed_model: str, prompt: str) -> str:

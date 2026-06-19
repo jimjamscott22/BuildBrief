@@ -1,11 +1,11 @@
 from fastapi import APIRouter
-from app.providers import list_all_models
+from app.models import ModelsResponse
+from app.providers import get_model_status
 
 router = APIRouter()
 
 
-@router.get("/models")
+@router.get("/models", response_model=ModelsResponse)
 async def get_models():
     """Return combined list of available models from LM Studio and Ollama."""
-    models = await list_all_models()
-    return {"models": models}
+    return await get_model_status()
