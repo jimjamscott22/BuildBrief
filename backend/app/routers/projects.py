@@ -3,7 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, HTTPException, Query
 
 from app import storage
-from app.models import ProjectSummary, ProjectWithDeliverables, RefinementResponse
+from app.models import Deliverable, ProjectSummary, ProjectWithDeliverables, RefinementResponse
 from app.schemas import GenerateRequest, ProjectCreate, ProjectUpdate, RefineRequest
 from app.services.deliverables import generate_deliverables as generate_project_deliverables
 from app.services.deliverables import refine_project
