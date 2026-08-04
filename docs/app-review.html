@@ -1,0 +1,1080 @@
+<title>BuildBrief — Application Review</title>
+
+<style>
+  :root {
+    --ground: #EEF1EF;
+    --surface: #FFFFFF;
+    --surface-2: #F6F8F7;
+    --ink: #131C19;
+    --ink-2: #56635E;
+    --ink-3: #7E8B85;
+    --rule: #D2DAD6;
+    --rule-soft: #E3E9E6;
+    --accent: #12564A;
+    --accent-soft: #E0EBE7;
+    --crit: #A8352B;
+    --crit-soft: #F6E4E1;
+    --high: #8C6113;
+    --high-soft: #F7EEDC;
+    --med: #3F6382;
+    --med-soft: #E4EBF1;
+
+    --display: ui-serif, "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+    --body: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, "Cascadia Mono", Menlo, Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #0E1412;
+      --surface: #151D1A;
+      --surface-2: #1A2320;
+      --ink: #E2E9E5;
+      --ink-2: #9BA9A3;
+      --ink-3: #77857F;
+      --rule: #27332F;
+      --rule-soft: #1F2A27;
+      --accent: #54B79B;
+      --accent-soft: #17302A;
+      --crit: #E0776B;
+      --crit-soft: #2E1B18;
+      --high: #D6A34A;
+      --high-soft: #2C2515;
+      --med: #7FA8C9;
+      --med-soft: #17242E;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #0E1412;
+    --surface: #151D1A;
+    --surface-2: #1A2320;
+    --ink: #E2E9E5;
+    --ink-2: #9BA9A3;
+    --ink-3: #77857F;
+    --rule: #27332F;
+    --rule-soft: #1F2A27;
+    --accent: #54B79B;
+    --accent-soft: #17302A;
+    --crit: #E0776B;
+    --crit-soft: #2E1B18;
+    --high: #D6A34A;
+    --high-soft: #2C2515;
+    --med: #7FA8C9;
+    --med-soft: #17242E;
+  }
+
+  :root[data-theme="light"] {
+    --ground: #EEF1EF;
+    --surface: #FFFFFF;
+    --surface-2: #F6F8F7;
+    --ink: #131C19;
+    --ink-2: #56635E;
+    --ink-3: #7E8B85;
+    --rule: #D2DAD6;
+    --rule-soft: #E3E9E6;
+    --accent: #12564A;
+    --accent-soft: #E0EBE7;
+    --crit: #A8352B;
+    --crit-soft: #F6E4E1;
+    --high: #8C6113;
+    --high-soft: #F7EEDC;
+    --med: #3F6382;
+    --med-soft: #E4EBF1;
+  }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .doc {
+    max-width: 60rem;
+    margin: 0 auto;
+    padding: 3rem 1.5rem 6rem;
+    display: flex;
+    flex-direction: column;
+    gap: 3.5rem;
+  }
+
+  /* ---------- masthead ---------- */
+
+  .masthead { display: flex; flex-direction: column; gap: 1.25rem; }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+  .eyebrow::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--rule);
+  }
+
+  .masthead h1 {
+    font-family: var(--display);
+    font-size: clamp(2.25rem, 6vw, 3.5rem);
+    line-height: 1.02;
+    font-weight: 400;
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+    margin: 0;
+  }
+
+  .standfirst {
+    font-size: 1.0625rem;
+    color: var(--ink-2);
+    max-width: 62ch;
+    margin: 0;
+  }
+
+  .factstrip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+    margin-top: 0.5rem;
+  }
+  .fact {
+    background: var(--surface);
+    padding: 0.8rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+  }
+  .fact dt {
+    font-family: var(--mono);
+    font-size: 0.625rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .fact dd {
+    margin: 0;
+    font-size: 0.9375rem;
+    font-variant-numeric: tabular-nums;
+  }
+  .fact dd.warn { color: var(--high); }
+  .fact dd.ok { color: var(--accent); }
+
+  /* ---------- generic sections ---------- */
+
+  section { display: flex; flex-direction: column; gap: 1.5rem; }
+
+  h2.section-title {
+    font-family: var(--display);
+    font-size: clamp(1.6rem, 3.5vw, 2.1rem);
+    font-weight: 400;
+    letter-spacing: -0.015em;
+    line-height: 1.15;
+    margin: 0;
+    text-wrap: balance;
+  }
+
+  .lede { color: var(--ink-2); max-width: 66ch; margin: 0; }
+
+  p { max-width: 68ch; margin: 0; }
+
+  a { color: var(--accent); text-underline-offset: 3px; }
+  a:focus-visible, button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+  }
+
+  code {
+    font-family: var(--mono);
+    font-size: 0.84em;
+    background: var(--surface-2);
+    border: 1px solid var(--rule-soft);
+    border-radius: 3px;
+    padding: 0.1em 0.35em;
+  }
+
+  pre {
+    font-family: var(--mono);
+    font-size: 0.8125rem;
+    line-height: 1.6;
+    background: var(--surface-2);
+    border: 1px solid var(--rule-soft);
+    border-left: 2px solid var(--rule);
+    padding: 0.9rem 1.1rem;
+    overflow-x: auto;
+    margin: 0;
+  }
+  pre code { background: none; border: none; padding: 0; font-size: inherit; }
+
+  .path {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--ink-3);
+  }
+
+  /* ---------- findings ---------- */
+
+  .findings { display: flex; flex-direction: column; gap: 1rem; }
+
+  .finding {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--sev, var(--rule));
+    display: grid;
+    grid-template-columns: 3.25rem 1fr;
+  }
+
+  .finding .rail {
+    border-right: 1px solid var(--rule-soft);
+    padding: 1.25rem 0 1.25rem 0;
+    display: flex;
+    justify-content: center;
+  }
+  .finding .rank {
+    font-family: var(--mono);
+    font-size: 1.05rem;
+    font-variant-numeric: tabular-nums;
+    color: var(--sev, var(--ink-3));
+  }
+
+  .finding .body {
+    padding: 1.25rem 1.4rem 1.4rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    min-width: 0;
+  }
+
+  .finding h3 {
+    font-family: var(--display);
+    font-size: 1.3rem;
+    font-weight: 400;
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+    margin: 0;
+    text-wrap: balance;
+  }
+
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .chip {
+    font-family: var(--mono);
+    font-size: 0.625rem;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    padding: 0.2rem 0.5rem;
+    border-radius: 2px;
+    white-space: nowrap;
+  }
+  .chip.sev { background: var(--sev-soft); color: var(--sev); }
+  .chip.tag {
+    background: transparent;
+    color: var(--ink-3);
+    border: 1px solid var(--rule);
+  }
+
+  .sev-crit { --sev: var(--crit); --sev-soft: var(--crit-soft); }
+  .sev-high { --sev: var(--high); --sev-soft: var(--high-soft); }
+  .sev-med  { --sev: var(--med);  --sev-soft: var(--med-soft); }
+  .sev-done { --sev: var(--accent); --sev-soft: var(--accent-soft); }
+
+  /* A resolved finding keeps its record on file but stops shouting. */
+  .finding.resolved .body > p,
+  .finding.resolved .body > pre,
+  .finding.resolved .body > ul,
+  .finding.resolved .body > .fix { opacity: 0.6; }
+
+  .resolution {
+    background: var(--accent-soft);
+    border-left: 2px solid var(--accent);
+    padding: 0.85rem 1.1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .resolution .fix-label { color: var(--accent); }
+  .resolution p { max-width: 66ch; }
+
+  /* Half-closed: the finding keeps its original severity, because what is left of it
+     is still open, but the part that was fixed is dimmed like a resolved one. */
+  .finding.partial .body > p,
+  .finding.partial .body > pre,
+  .finding.partial .body > ul { opacity: 0.6; }
+
+  .chip.done { background: var(--accent-soft); color: var(--accent); }
+
+  .remaining {
+    background: var(--sev-soft);
+    border-left: 2px solid var(--sev);
+    padding: 0.85rem 1.1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .remaining .fix-label { color: var(--sev); }
+  .remaining p { max-width: 66ch; }
+
+  .strike { text-decoration: line-through; text-decoration-color: var(--ink-3); color: var(--ink-3); }
+
+  .fix {
+    border-top: 1px solid var(--rule-soft);
+    padding-top: 0.85rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+  /* One label treatment for every callout panel; the panels override only the colour. */
+  .fix-label {
+    font-family: var(--mono);
+    font-size: 0.625rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  /* ---------- compact list items for category sections ---------- */
+
+  .items { display: flex; flex-direction: column; gap: 0; border-top: 1px solid var(--rule); }
+  .item {
+    border-bottom: 1px solid var(--rule);
+    padding: 1.1rem 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+  }
+  .item h4 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0;
+    line-height: 1.35;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.6rem;
+  }
+  .item p { color: var(--ink-2); font-size: 0.9375rem; }
+
+  /* ---------- table ---------- */
+
+  .table-wrap { overflow-x: auto; border: 1px solid var(--rule); background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; min-width: 46rem; }
+  th, td { text-align: left; padding: 0.7rem 1rem; border-bottom: 1px solid var(--rule-soft); vertical-align: top; }
+  thead th {
+    font-family: var(--mono);
+    font-size: 0.625rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    border-bottom: 1px solid var(--rule);
+    font-weight: 400;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; color: var(--ink-3); width: 2.5rem; }
+  td.effort { font-family: var(--mono); font-size: 0.8125rem; color: var(--accent); width: 4rem; }
+
+  /* ---------- good news panel ---------- */
+
+  .panel {
+    background: var(--accent-soft);
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--accent);
+    padding: 1.25rem 1.4rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+  .panel h3 {
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0;
+    font-weight: 500;
+  }
+  .panel p { max-width: 70ch; }
+
+  ul.plain { margin: 0; padding-left: 1.1rem; display: flex; flex-direction: column; gap: 0.4rem; }
+  ul.plain li { color: var(--ink-2); max-width: 66ch; }
+
+  footer {
+    border-top: 1px solid var(--rule);
+    padding-top: 1.25rem;
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem 1.5rem;
+    justify-content: space-between;
+  }
+
+  @media (max-width: 34rem) {
+    .finding { grid-template-columns: 1fr; }
+    .finding .rail {
+      border-right: none;
+      border-bottom: 1px solid var(--rule-soft);
+      padding: 0.6rem 1.4rem;
+      justify-content: flex-start;
+    }
+  }
+</style>
+
+<div class="doc">
+
+  <header class="masthead">
+    <div class="eyebrow">Application Review · Revision 3 · 3 August 2026</div>
+    <h1>BuildBrief</h1>
+    <p class="standfirst">
+      A full-stack review of the intake wizard, the FastAPI backend, and the local-model
+      generation pipeline. The architecture is sound; the gaps are concentrated in what
+      happens when generation fails, and in the assumptions that only hold on one
+      developer's machine.
+    </p>
+    <p class="standfirst">
+      <strong>Revision 3:</strong> findings 01 and 02 are fixed, and 04 is half fixed — the
+      network exposure and the hardcoded credential are closed, authentication is not. The
+      rest of this document still describes the code as reviewed at commit
+      <code>60c8658</code>.
+    </p>
+
+    <dl class="factstrip">
+      <div class="fact"><dt>Backend</dt><dd>840 LOC</dd></div>
+      <div class="fact"><dt>Frontend</dt><dd>1,733 LOC</dd></div>
+      <div class="fact"><dt>Tests</dt><dd class="ok">17 passing</dd></div>
+      <div class="fact"><dt>Test LOC</dt><dd class="ok">415</dd></div>
+      <div class="fact"><dt>Typecheck + lint</dt><dd class="ok">Clean</dd></div>
+      <div class="fact"><dt>Migrations</dt><dd class="warn">None</dd></div>
+      <div class="fact"><dt>CI</dt><dd class="warn">None</dd></div>
+    </dl>
+  </header>
+
+  <section>
+    <div class="panel">
+      <h3>What's already working</h3>
+      <p>
+        The provider abstraction is clean and correctly concurrent — two probes under
+        <code>asyncio.gather</code>, prefix-based routing, graceful omission of unreachable
+        providers. Wizard state lives in <code>useWizardController</code>, so
+        <code>WizardPage</code> stays presentational. <code>ApiError</code> carries the
+        backend's <code>detail</code> string all the way to the UI. Every fetching
+        <code>useEffect</code> uses an <code>ignore</code> flag against unmount races.
+        Deliverable merge semantics preserve unselected outputs, and a test proves it.
+        <code>react-markdown</code> runs without <code>rehype-raw</code>, so model output
+        cannot inject HTML — keep it that way.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ PRIORITY FINDINGS ============ -->
+  <section>
+    <div class="eyebrow">Start here</div>
+    <h2 class="section-title">Five findings, in the order worth fixing them</h2>
+    <p class="lede">
+      Ranked by damage done today, not by how interesting they are. The first two cost users
+      real work and real GPU minutes — <strong>both are now fixed</strong>, and are kept here
+      with their resolutions rather than deleted. Finding 04 is <strong>half closed</strong>:
+      the app no longer listens on a routable interface and no longer ships a credential, but
+      it still has no authentication. Findings 03 and 05 are open.
+    </p>
+
+    <div class="findings">
+
+      <!-- 1 -->
+      <article class="finding sev-done resolved">
+        <div class="rail"><span class="rank">01</span></div>
+        <div class="body">
+          <div class="meta">
+            <span class="chip sev">Fixed</span>
+            <span class="chip tag">Was: Critical</span>
+            <span class="chip tag">Correctness</span>
+            <span class="chip tag">UX</span>
+          </div>
+          <h3>A partial generation failure throws away everything that succeeded</h3>
+
+          <div class="resolution">
+            <span class="fix-label">Resolution</span>
+            <p>
+              The gather now uses <code>return_exceptions=True</code> and partitions outcomes:
+              successes merge into the <code>Deliverable</code>, failures become typed
+              <code>DeliverableFailure</code> entries on a new <code>GenerationResult</code>.
+              Total failure still raises, preserving the 400/502 mapping — reporting success
+              when nothing generated would be a lie. The router persists partial output before
+              returning.
+            </p>
+            <p>
+              On the frontend an <code>ensureProject()</code> helper backed by
+              <code>createdId</code> state means a retry updates the same record instead of
+              forking a new one — <code>handleRefine</code> had the identical bug and shares the
+              helper. Results renders an “n of m generated” banner naming what failed, counted
+              over <em>requested</em> keys so regenerating a subset reports the right ratio.
+            </p>
+            <p class="path">
+              Verified by test_partial_generation_is_persisted · test_total_generation_failure_returns_502
+            </p>
+          </div>
+
+          <p class="path">Originally reported at backend/app/services/deliverables.py:104</p>
+<pre><code>generated = await asyncio.gather(*(run_one(key) for key in deliverable_keys))</code></pre>
+          <p>
+            Without <code>return_exceptions=True</code>, the first exception propagates and
+            cancels the rest. Pick the Agent Handoff preset (three deliverables), have the
+            third time out at 120s, and the two that already completed — several minutes of
+            local GPU time — are discarded. <code>save_deliverables</code> is never reached,
+            the endpoint returns 502.
+          </p>
+          <p>
+            It compounds on the frontend. <code>handleGenerate</code> creates the project
+            <em>before</em> generating, and on failure <code>editId</code> is still
+            <code>null</code>:
+          </p>
+<pre><code>const projectId = editId ?? (await createProject(projectData)).id</code></pre>
+          <p>So every retry writes another orphan row. Three failed attempts leave three identical projects in the Library.</p>
+          <div class="fix">
+            <span class="fix-label">Fix</span>
+            <p>
+              Gather with <code>return_exceptions=True</code>, persist whatever succeeded, and
+              return per-deliverable status so the UI can offer “2 of 3 generated — retry Agent
+              Prompt.” On the client, hold the created id in state (or navigate to
+              <code>?edit=&lt;id&gt;</code> right after creation) so a retry updates instead of
+              duplicating.
+            </p>
+          </div>
+        </div>
+      </article>
+
+      <!-- 2 -->
+      <article class="finding sev-done resolved">
+        <div class="rail"><span class="rank">02</span></div>
+        <div class="body">
+          <div class="meta">
+            <span class="chip sev">Fixed</span>
+            <span class="chip tag">Was: Critical</span>
+            <span class="chip tag">Performance</span>
+            <span class="chip tag">Reliability</span>
+          </div>
+          <h3>Every database call blocks the event loop</h3>
+
+          <div class="resolution">
+            <span class="fix-label">Resolution</span>
+            <p>
+              The five storage-only handlers are now plain <code>def</code>, so FastAPI runs
+              them in its threadpool. <code>generate</code> and <code>refine</code> stay
+              <code>async def</code> — they await the providers — and push their storage calls
+              through <code>run_in_threadpool</code>. The engine gained
+              <code>pool_pre_ping=True, pool_recycle=1800</code>.
+            </p>
+            <p>
+              Covered by a new <code>tests/test_projects_router.py</code>. Those tests use a
+              file-backed SQLite database via <code>tmp_path</code>, because <code>:memory:</code>
+              is not shared across threads and the threadpool handlers would otherwise hit an
+              empty database.
+            </p>
+          </div>
+
+          <p class="path">Originally reported at backend/app/storage.py · backend/app/routers/projects.py</p>
+          <p>
+            <code>storage.py</code> is entirely synchronous PyMySQL, and every route in
+            <code>projects.py</code> is <code>async def</code>. FastAPI runs
+            <code>async def</code> handlers directly on the event loop — only plain
+            <code>def</code> handlers get the threadpool. So each <code>session.get()</code>
+            stalls the whole server, including in-flight generations and the
+            <code>/api/models</code> probe. Against MariaDB on <code>raspberrypi.local</code>,
+            that stall is a network round trip, measured in tens of milliseconds per query.
+          </p>
+          <p>
+            The same file opens the engine with no connection health check:
+          </p>
+<pre><code>_engine = create_engine(url, future=True)</code></pre>
+          <p>
+            MariaDB drops idle connections after <code>wait_timeout</code>. The first request
+            after a quiet period gets a dead pooled connection and a “MySQL server has gone
+            away” 500 — intermittent, and miserable to debug.
+          </p>
+          <div class="fix">
+            <span class="fix-label">Fix</span>
+            <p>
+              Drop <code>async</code> from the five storage-only handlers so FastAPI runs them
+              in the threadpool; wrap the <code>storage.*</code> calls inside the generation
+              routes in <code>run_in_threadpool</code>. Add
+              <code>pool_pre_ping=True, pool_recycle=1800</code> — two keyword arguments that
+              remove an entire class of intermittent failure. Longer term, move to
+              <code>aiomysql</code> and <code>AsyncSession</code>.
+            </p>
+          </div>
+        </div>
+      </article>
+
+      <!-- 3 -->
+      <article class="finding sev-high">
+        <div class="rail"><span class="rank">03</span></div>
+        <div class="body">
+          <div class="meta">
+            <span class="chip sev">High</span>
+            <span class="chip tag">Feature</span>
+            <span class="chip tag">UX</span>
+          </div>
+          <h3>Generation is a blind 120-second wait</h3>
+          <p class="path">frontend/src/pages/wizard/useWizardController.ts:212 · backend/app/providers.py</p>
+          <p>
+            One request, a counting timer, no streaming and no cancel. A local 7B model
+            producing three long markdown documents can sit near the 120s <code>httpx</code>
+            timeout with zero feedback — and if it times out, finding 01 means everything is
+            lost.
+          </p>
+          <p>
+            Both providers already stream. LM Studio takes <code>"stream": true</code> on
+            <code>/v1/chat/completions</code>; Ollama streams by default and the code
+            explicitly opts out with <code>"stream": False</code>.
+          </p>
+          <div class="fix">
+            <span class="fix-label">Fix</span>
+            <p>
+              Add an SSE endpoint emitting <code>{deliverable, delta}</code> events and render
+              tokens into the Results view as they arrive, with an
+              <code>AbortController</code> so a bad generation can be stopped. This is the
+              single highest-value change available: it converts the worst moment in the
+              product into the most convincing one.
+            </p>
+          </div>
+        </div>
+      </article>
+
+      <!-- 4 -->
+      <article class="finding sev-high partial">
+        <div class="rail"><span class="rank">04</span></div>
+        <div class="body">
+          <div class="meta">
+            <span class="chip done">Partly fixed</span>
+            <span class="chip sev">High</span>
+            <span class="chip tag">Security</span>
+          </div>
+          <h3>The API is unauthenticated and bound to every interface</h3>
+          <p class="path">Originally reported at backend/app/main.py:37 · docker-compose.yml · backend/app/storage.py:14</p>
+
+          <div class="resolution">
+            <span class="fix-label">Resolution — exposure and credential</span>
+            <p>
+              The listen address is now <code>HOST</code>/<code>PORT</code>, defaulting to
+              <code>127.0.0.1:8001</code>. Both Dockerfiles moved to shell form so that
+              default survives containers — the <code>--host 0.0.0.0</code> in
+              <code>backend/Dockerfile</code> would otherwise have overridden it silently.
+            </p>
+            <p>
+              The frontend dev server was bound the same way. Under
+              <code>network_mode: host</code> it proxies <code>/api</code> to the backend, so
+              leaving Vite on <code>0.0.0.0</code> would have republished the API that had
+              just been pulled back to loopback.
+            </p>
+            <p>
+              <code>DEFAULT_DATABASE_URL</code> is gone. A missing <code>DATABASE_URL</code>
+              raises at startup with a message naming <code>.env.example</code>, rather than
+              guessing a host and password. Four tests in
+              <code>tests/test_configuration.py</code> hold both defaults in place.
+            </p>
+          </div>
+
+          <div class="remaining">
+            <span class="fix-label">Still open — authentication</span>
+            <p>
+              Anything that can reach the port still has unrestricted access, and
+              <code>/generate</code> still has no concurrency cap. Loopback is a boundary, not
+              a control: it needs a shared-secret header or a single-user session before the
+              app runs anywhere shared, plus a one-in-flight semaphore on
+              <code>/generate</code> that doubles as backpressure for a single local GPU.
+            </p>
+          </div>
+
+          <p>Three things stacked as reviewed:</p>
+          <ul class="plain">
+            <li><code>uvicorn.run(app, host="0.0.0.0", port=8001)</code></li>
+            <li><code>network_mode: host</code> on both compose services</li>
+            <li>No authentication, authorization, or rate limiting on any endpoint</li>
+          </ul>
+          <p>
+            Anyone on the same network can list, read, edit, and delete the entire project
+            library, and can POST to <code>/generate</code> to occupy the GPU indefinitely.
+            The CORS allowlist constrains browsers, not <code>curl</code>.
+          </p>
+          <p>Alongside it, a fallback DSN with a credential baked into source:</p>
+<pre><code>DEFAULT_DATABASE_URL = "mysql+pymysql://buildbrief:password@raspberrypi.local:3306/buildbrief"</code></pre>
+        </div>
+      </article>
+
+      <!-- 5 -->
+      <article class="finding sev-high">
+        <div class="rail"><span class="rank">05</span></div>
+        <div class="body">
+          <div class="meta">
+            <span class="chip sev">High</span>
+            <span class="chip tag">Maintainability</span>
+            <span class="chip tag">Test coverage</span>
+          </div>
+          <h3>No migrations, no API tests, no frontend tests, no CI</h3>
+          <p>
+            <code>init_db()</code> calls <code>create_all</code>, which creates missing tables
+            and ignores changed ones. The first added or widened column means manual DDL on
+            every deployment. Adopt Alembic now, while there are two tables and no external
+            users.
+          </p>
+          <p>
+            Coverage was 174 lines against 2,454 lines of application code, all of it below the
+            HTTP layer. Revisions 2 and 3 added <code>tests/test_projects_router.py</code> and
+            <code>tests/test_configuration.py</code> (415 test LOC now), so the routers and the
+            environment handling are covered; the provider clients and every React component
+            still are not.
+          </p>
+          <div class="fix">
+            <span class="fix-label">Fix</span>
+            <ul class="plain">
+              <li><span class="strike"><strong>Routers</strong> — <code>TestClient</code>: 404 paths, the <code>GenerateRequest</code> validation boundary, the 502 mapping.</span> <strong>Done</strong> — six tests covering the CRUD round trip, 404s, 422 on an unknown deliverable key, partial-generation persistence, total-failure 502, and the 400 unknown-prefix path.</li>
+              <li><strong>Providers</strong> — <code>httpx.MockTransport</code>: prefix routing, unreachable fallback, and malformed payloads (<code>r.json()["choices"][0]</code> raises <code>KeyError</code> → unhandled 500).</li>
+              <li><strong>Frontend</strong> — Vitest + Testing Library, starting with <code>useWizardController</code>: validation, edit-mode hydration, preset application, generation flow.</li>
+              <li><strong>CI</strong> — one workflow running <code>uv run pytest</code>, <code>npm run lint</code>, <code>tsc -b</code>. All three pass today, so it starts green.</li>
+            </ul>
+          </div>
+        </div>
+      </article>
+
+    </div>
+  </section>
+
+  <!-- ============ PERFORMANCE ============ -->
+  <section>
+    <div class="eyebrow">Performance</div>
+    <h2 class="section-title">Wasted round trips and blocked paint</h2>
+
+    <div class="items">
+      <div class="item">
+        <h4>Library search fires a request per keystroke <span class="chip sev sev-high">High</span></h4>
+        <p class="path">frontend/src/pages/LibraryPage.tsx:32</p>
+        <p>
+          The effect depends on <code>[platform, query]</code>, so typing “planner” issues
+          seven requests with no debounce and no abort. Responses can resolve out of order and
+          a stale one wins. Debounce to ~250ms and cancel the previous request with an
+          <code>AbortController</code>.
+        </p>
+      </div>
+
+      <div class="item">
+        <h4>The same filter runs twice <span class="chip sev sev-med">Medium</span></h4>
+        <p class="path">frontend/src/pages/LibraryPage.tsx:50</p>
+        <p>
+          <code>listProjects</code> already applies <code>q</code> and <code>platform</code>
+          server-side; <code>filteredProjects</code> re-applies both on the client. Beyond dead
+          work, it's a correctness trap — server-side <code>ilike</code> and client-side
+          <code>toLowerCase().includes()</code> diverge on the first non-ASCII title. Render
+          <code>projects</code> directly.
+        </p>
+      </div>
+
+      <div class="item">
+        <h4>Unindexed sort column <span class="chip sev sev-med">Medium</span></h4>
+        <p class="path">backend/app/storage.py:176</p>
+        <p>
+          Every list query orders by <code>updated_at DESC, created_at DESC</code> and neither
+          column is indexed. Add <code>index=True</code> to <code>updated_at</code>. The
+          <code>ilike '%term%'</code> search can't use a B-tree at all — a MariaDB
+          <code>FULLTEXT</code> index on <code>(title, description)</code> is the upgrade path.
+        </p>
+      </div>
+
+      <div class="item">
+        <h4>Pagination exists in the API but not the UI <span class="chip sev sev-med">Medium</span></h4>
+        <p>
+          <code>limit</code>/<code>offset</code> are implemented and validated;
+          <code>LibraryPage</code> hardcodes <code>limit: 100</code>. Past 100 projects, briefs
+          silently vanish.
+        </p>
+      </div>
+
+      <div class="item">
+        <h4>Markdown renderer ships in the initial bundle <span class="chip sev sev-med">Medium</span></h4>
+        <p>
+          <code>react-markdown</code> and <code>remark-gfm</code> are only used on
+          <code>/results/:id</code>. <code>React.lazy</code> on <code>ResultsPage</code> moves
+          roughly 100KB off the path to first paint on the wizard — which is the landing route.
+        </p>
+      </div>
+
+      <div class="item">
+        <h4>Google Fonts import is render-blocking <span class="chip sev sev-med">Medium</span></h4>
+        <p class="path">frontend/src/index.css:1</p>
+        <p>
+          A CSS <code>@import</code> for three families and twelve weights blocks rendering
+          until it resolves. Move it to <code>preconnect</code> + <code>link rel=stylesheet</code>
+          in <code>index.html</code>, trim to the weights actually used, add
+          <code>font-display: swap</code>.
+        </p>
+      </div>
+
+      <div class="item">
+        <h4>Concurrent generation may be counterproductive locally <span class="chip sev sev-med">Medium</span></h4>
+        <p>
+          <code>asyncio.gather</code> fires three requests at one local model server. LM Studio
+          and Ollama queue them, so wall-clock time is unchanged at best; with a large model,
+          three concurrent contexts can push VRAM into swap. Worth measuring — a sequential
+          loop with per-deliverable progress may be both faster and better UX.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SECURITY ============ -->
+  <section>
+    <div class="eyebrow">Security</div>
+    <h2 class="section-title">Input boundaries and deployment posture</h2>
+
+    <div class="items">
+      <div class="item">
+        <h4>No input length limits <span class="chip sev sev-high">High</span></h4>
+        <p class="path">backend/app/schemas.py:10</p>
+        <p>
+          <code>ProjectCreate</code> accepts unbounded strings for every field. They're
+          concatenated into the prompt and stored in <code>TEXT</code> columns (65,535 bytes —
+          longer raises <code>DataError</code>). A 500KB <code>extra_context</code> blows the
+          model's context window and then fails the insert. Add <code>Field(max_length=…)</code>:
+          200 for <code>title</code>, ~5,000 for the long fields.
+        </p>
+      </div>
+
+      <div class="item">
+        <h4>Unvalidated <code>platform</code> query parameter <span class="chip sev sev-med">Medium</span></h4>
+        <p class="path">backend/app/routers/projects.py:23</p>
+        <p>
+          The list endpoint types <code>platform</code> as a bare <code>str</code> while
+          <code>ProjectCreate</code> uses a <code>Literal</code>. An arbitrary value returns an
+          empty list rather than a 422. Reuse the <code>Platform</code> literal.
+        </p>
+      </div>
+
+      <div class="item">
+        <h4>Provider responses are trusted <span class="chip sev sev-med">Medium</span></h4>
+        <p class="path">backend/app/providers.py:62, :103</p>
+        <p>
+          <code>r.json()["choices"][0]["message"]["content"]</code> assumes a well-formed
+          payload. A provider returning an error object yields <code>KeyError</code> → an
+          unhandled 500. Parse defensively and map to a 502 with a message that names the
+          provider.
+        </p>
+      </div>
+
+      <div class="item">
+        <h4>Prompt injection is inherent, and currently contained <span class="chip sev sev-med">Note</span></h4>
+        <p>
+          Project text flows into the prompt, so a user steers their own generation — that's
+          the product working. It only becomes a vulnerability the day BuildBrief gains shared
+          projects or a public gallery, when generated markdown becomes attacker-controlled
+          content in someone else's browser. The <code>react-markdown</code> setup without
+          <code>rehype-raw</code> is what keeps that safe; guard it with a comment and a test.
+        </p>
+      </div>
+
+      <div class="item">
+        <h4>Compose file is a development configuration <span class="chip sev sev-med">Medium</span></h4>
+        <p>
+          <code>--reload</code>, source bind-mounts, and Vite's dev server. Correct for local
+          work, but the README presents it as the way to run BuildBrief. Add a production
+          target — multi-stage frontend build served as static files, no <code>--reload</code>
+          — before this runs anywhere unattended.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ CODE QUALITY ============ -->
+  <section>
+    <div class="eyebrow">Code quality</div>
+    <h2 class="section-title">Small things that will bite later</h2>
+
+    <div class="items">
+      <div class="item">
+        <h4><code>DeliverableKey</code> is defined twice</h4>
+        <p>
+          <code>models.py:4</code> has <code>DeliverableKey = str</code>;
+          <code>schemas.py:5</code> has the <code>Literal</code>. The first is unused and will
+          silently weaken typing the moment someone imports the wrong one. Delete it.
+        </p>
+      </div>
+      <div class="item">
+        <h4><code>@app.on_event("startup")</code> is deprecated</h4>
+        <p><code>main.py:32</code> — move to the <code>lifespan</code> context manager before FastAPI removes it.</p>
+      </div>
+      <div class="item">
+        <h4>Scratch files are committed</h4>
+        <p>
+          <code>frontend/themes_scratch.css</code> (132 lines) and
+          <code>frontend/gen_themes.py</code> (193 lines) are build-time scratch, not app
+          source. Delete them or move them under <code>tools/</code> with a note on how they're
+          run — and per this project's conventions, that generator should be invoked with
+          <code>uv run</code>.
+        </p>
+      </div>
+      <div class="item">
+        <h4>Refinement question parsing is fragile</h4>
+        <p>
+          <code>deliverables.py:123</code> strips leading <code>0123456789. )-</code> from every
+          non-empty line and takes five. A model that opens with “Here are five questions:”
+          returns that preamble as question one. Ask for JSON, keep the line parser as fallback.
+        </p>
+      </div>
+      <div class="item">
+        <h4><code>save_deliverables</code> can't clear a field</h4>
+        <p>
+          <code>storage.py:213</code> skips <code>None</code> — the right merge semantic for
+          generation, but it means no single deliverable can be deleted. Fine today; worth a
+          comment so it isn't mistaken for a bug.
+        </p>
+      </div>
+      <div class="item">
+        <h4>No React error boundary, and <code>pad()</code> lives in four files</h4>
+        <p>
+          Any render-time exception blanks the page; one boundary around
+          <code>&lt;Outlet /&gt;</code> in <code>Layout</code> costs ten lines. And
+          <code>pad()</code> is duplicated across <code>WizardPage</code>,
+          <code>ResultsPage</code>, <code>LibraryPage</code>, and <code>GenerateStep</code>.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ UX ============ -->
+  <section>
+    <div class="eyebrow">UX</div>
+    <h2 class="section-title">Three rough edges in the daily path</h2>
+
+    <div class="items">
+      <div class="item">
+        <h4>The theme flashes on every load</h4>
+        <p>
+          <code>ThemePicker</code> reads <code>localStorage</code> in a <code>useEffect</code>,
+          which runs after first paint — so a Gruvbox Light user sees a dark navy flash on every
+          navigation. Set <code>data-theme</code> from a tiny inline script in
+          <code>index.html</code>, before the bundle loads.
+        </p>
+      </div>
+      <div class="item">
+        <h4>Results are download-only</h4>
+        <p>
+          Export writes a <code>.md</code> file; there's no copy-to-clipboard. For the Agent
+          Prompt deliverable, copy <em>is</em> the primary action — the whole point is pasting
+          it into a coding agent. Add a copy button per section.
+        </p>
+      </div>
+      <div class="item">
+        <h4><code>formatDate</code> will render “Invalid Date”</h4>
+        <p>
+          <code>ResultsPage</code> seeds project state from <code>location.state</code> with
+          <code>created_at: ''</code>, and <code>LibraryPage.formatDate</code> passes strings to
+          <code>new Date()</code> unguarded.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ FEATURES ============ -->
+  <section>
+    <div class="eyebrow">Feature suggestions</div>
+    <h2 class="section-title">Where the next build effort pays off most</h2>
+
+    <div class="items">
+      <div class="item">
+        <h4>Streaming generation <span class="chip sev sev-high">Do first</span></h4>
+        <p>Covered in finding 03. It changes how the app feels more than anything else on this list.</p>
+      </div>
+      <div class="item">
+        <h4>Regenerate a single deliverable</h4>
+        <p>
+          The API already supports it — <code>GenerateRequest.deliverables</code> takes a subset
+          and the merge preserves the rest. Only the wizard exposes it, and only as a full
+          four-step round trip. A “Regenerate this section” button on the Results page, with its
+          own model and preset picker, sits on machinery that already exists.
+        </p>
+      </div>
+      <div class="item">
+        <h4>Deliverable versions</h4>
+        <p>
+          Regenerating overwrites in place, so a worse result destroys a better one. A
+          <code>deliverable_versions</code> table keyed by
+          <code>(project_id, key, created_at)</code> plus a version switcher turns “regenerate”
+          from a gamble into an experiment — and it's what makes comparing local models
+          actually useful.
+        </p>
+      </div>
+      <div class="item">
+        <h4>Editable prompt templates</h4>
+        <p>
+          <code>DELIVERABLE_PROMPTS</code> and <code>PRESET_INSTRUCTIONS</code> are hardcoded
+          dictionaries. Surfacing them as per-project overrides costs one table and one settings
+          view, and it's the difference between a fixed tool and one people tune to their own
+          way of writing specs.
+        </p>
+      </div>
+      <div class="item">
+        <h4>Export as a zip, not a concatenated file</h4>
+        <p>
+          The bundle export joins markdown into a single document. A zip containing
+          <code>specification.md</code>, <code>implementation-plan.md</code>, and
+          <code>AGENTS.md</code> — laid out as a directory you drop into a new project — matches
+          how the output is actually used.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ ORDER ============ -->
+  <section>
+    <div class="eyebrow">Suggested order</div>
+    <h2 class="section-title">A build sequence</h2>
+    <p class="lede">
+      Cheap reliability fixes first, then the streaming work, with tests arriving in time to
+      protect it. Items 01–04 are done; <strong>item 05 is next</strong>, then 06 — both get
+      more expensive the longer they wait. Item 4b can stay parked while the app only listens
+      on loopback, and comes due the moment that changes.
+    </p>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>#</th><th>Work</th><th>Effort</th><th>Status</th><th>Why now</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="num">01</td><td><code>return_exceptions=True</code> + persist partial results; stop duplicating projects on retry</td><td class="effort">S</td><td><span class="chip sev sev-done">Done</span></td><td>Users lose real generation time today</td></tr>
+          <tr><td class="num">02</td><td><code>pool_pre_ping</code> + <code>pool_recycle</code></td><td class="effort">XS</td><td><span class="chip sev sev-done">Done</span></td><td>Two arguments; kills a class of intermittent 500s</td></tr>
+          <tr><td class="num">03</td><td>Un-<code>async</code> the storage-only routes</td><td class="effort">S</td><td><span class="chip sev sev-done">Done</span></td><td>Removes event-loop stalls without a driver migration</td></tr>
+          <tr><td class="num">04</td><td>Bind to <code>127.0.0.1</code>; remove the hardcoded DSN</td><td class="effort">S</td><td><span class="chip sev sev-done">Done</span></td><td>Closes the exposure before more is built on it</td></tr>
+          <tr><td class="num">4b</td><td>Shared-secret auth + a per-IP cap on <code>/generate</code></td><td class="effort">S</td><td><span class="chip sev sev-high">Open</span></td><td>The other half of finding 04; needed before any non-loopback use</td></tr>
+          <tr><td class="num">05</td><td>Alembic</td><td class="effort">S</td><td><span class="chip sev sev-crit">Next</span></td><td>Cheapest now, at two tables</td></tr>
+          <tr><td class="num">06</td><td>CI running the checks that already pass</td><td class="effort">S</td><td><span class="chip tag">Open</span></td><td>Locks in a currently-green baseline</td></tr>
+          <tr><td class="num">07</td><td>Streaming generation over SSE</td><td class="effort">M</td><td><span class="chip tag">Open</span></td><td>The highest-impact product change</td></tr>
+          <tr><td class="num">08</td><td>Provider tests, then Vitest on <code>useWizardController</code></td><td class="effort">M</td><td><span class="chip sev sev-high">Part</span></td><td>Router tests landed with item 01; the rest makes everything above safe to change</td></tr>
+          <tr><td class="num">09</td><td>Debounce/abort Library search; delete the duplicate client filter</td><td class="effort">S</td><td><span class="chip tag">Open</span></td><td>Visible responsiveness win</td></tr>
+          <tr><td class="num">10</td><td>Theme flash, copy-to-clipboard, <code>React.lazy</code> on Results</td><td class="effort">S</td><td><span class="chip tag">Open</span></td><td>Small polish, immediately noticeable</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer>
+    <span>BuildBrief · Application Review · Revision 3</span>
+    <span>Verified: pytest 17 passed · tsc clean · eslint clean</span>
+    <span>3 Aug 2026</span>
+  </footer>
+
+</div>
