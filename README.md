@@ -149,6 +149,10 @@ Edit `backend/.env` so `DATABASE_URL` points to your MariaDB server:
 DATABASE_URL=mysql+pymysql://buildbrief:change-me@raspberrypi.local:3306/buildbrief
 ```
 
+`DATABASE_URL` is required — there is no built-in fallback, and the backend exits at startup if it is unset.
+
+`.env.example` also sets `HOST=127.0.0.1`. The API has no authentication, so anyone who can reach it can read, edit, and delete every saved project and can keep the GPU busy. Leave it on loopback unless you have put something in front of it that authenticates callers.
+
 Start the backend first:
 
 ```bash
@@ -187,6 +191,8 @@ docker compose up -d
 Once the containers are running:
 - Open `http://localhost:5173` for the frontend
 - Check `http://localhost:8001/api/health` for the backend health endpoint
+
+Both services use `network_mode: host` and bind to loopback, so they are reachable from the machine running Docker and nowhere else. The frontend dev server proxies `/api`, so exposing it (`FRONTEND_HOST=0.0.0.0`) exposes the unauthenticated backend along with it.
 
 To stop the containers, run:
 ```bash

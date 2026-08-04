@@ -11,8 +11,10 @@ from app.schemas import ProjectCreate, ProjectUpdate
 
 load_dotenv()
 
-DEFAULT_DATABASE_URL = (
-    "mysql+pymysql://buildbrief:password@raspberrypi.local:3306/buildbrief"
+MISSING_DATABASE_URL = (
+    "DATABASE_URL is not set. Copy backend/.env.example to backend/.env and point "
+    "DATABASE_URL at your database, e.g. "
+    "mysql+pymysql://user:password@host:3306/buildbrief"
 )
 
 
@@ -56,7 +58,12 @@ _SessionLocal: sessionmaker[Session] | None = None
 def configure_database(database_url: str | None = None) -> None:
     """Configure the database engine. Tests can call this with a temporary URL."""
     global _engine, _SessionLocal
-    url = database_url or os.getenv("DATABASE_URL") or DEFAULT_DATABASE_URL
+    # No built-in fallback: a guessed host and password would either fail with an
+    # opaque driver error or, worse, connect to something unintended. Missing
+    # configuration should stop the process at startup with a message that says why.
+    url = database_url or os.getenv("DATABASE_URL")
+    if not url:
+        raise RuntimeError(MISSING_DATABASE_URL)
     # MariaDB drops idle connections after wait_timeout. Without pre_ping, the first
     # request after a quiet period gets a dead pooled connection and a 500.
     _engine = create_engine(

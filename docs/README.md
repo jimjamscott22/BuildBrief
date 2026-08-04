@@ -53,6 +53,8 @@ Set `DATABASE_URL` in `backend/.env` to your MariaDB server, for example:
 DATABASE_URL=mysql+pymysql://buildbrief:change-me@raspberrypi.local:3306/buildbrief
 ```
 
+It is required: the backend has no fallback connection string and stops at startup without it. `HOST` defaults to `127.0.0.1` for the same reason the example file says so — the API is unauthenticated and should not listen on a routable interface.
+
 Install frontend dependencies:
 
 ```bash

@@ -9,4 +9,7 @@ RUN uv sync
 
 COPY . .
 
-CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8001", "--reload"]
+# Shell form so HOST/PORT from the env file are honoured. These services run with
+# network_mode: host, so 0.0.0.0 here would publish the unauthenticated API to the
+# whole network — the default stays on loopback.
+CMD uv run uvicorn app.main:app --host ${HOST:-127.0.0.1} --port ${PORT:-8001} --reload
