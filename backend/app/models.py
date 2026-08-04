@@ -1,7 +1,7 @@
 from datetime import datetime
 from pydantic import BaseModel
 
-DeliverableKey = str
+from app.schemas import DeliverableKey
 
 
 class Project(BaseModel):
@@ -41,6 +41,27 @@ class ProjectSummary(BaseModel):
 class ProjectWithDeliverables(BaseModel):
     project: Project
     deliverables: Deliverable | None = None
+
+
+class DeliverableFailure(BaseModel):
+    """One requested deliverable that could not be generated."""
+
+    deliverable: DeliverableKey
+    label: str
+    message: str
+
+
+class GenerationResult(BaseModel):
+    """
+    Outcome of a generation request.
+
+    `deliverables` holds everything that is now persisted, including outputs from
+    earlier runs that were not regenerated. `failures` lists the requested keys that
+    did not complete, so a partial success stays a success.
+    """
+
+    deliverables: Deliverable
+    failures: list[DeliverableFailure] = []
 
 
 class ProviderStatus(BaseModel):

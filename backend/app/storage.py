@@ -57,7 +57,14 @@ def configure_database(database_url: str | None = None) -> None:
     """Configure the database engine. Tests can call this with a temporary URL."""
     global _engine, _SessionLocal
     url = database_url or os.getenv("DATABASE_URL") or DEFAULT_DATABASE_URL
-    _engine = create_engine(url, future=True)
+    # MariaDB drops idle connections after wait_timeout. Without pre_ping, the first
+    # request after a quiet period gets a dead pooled connection and a 500.
+    _engine = create_engine(
+        url,
+        future=True,
+        pool_pre_ping=True,
+        pool_recycle=1800,
+    )
     _SessionLocal = sessionmaker(bind=_engine, autoflush=False, expire_on_commit=False)
 
 

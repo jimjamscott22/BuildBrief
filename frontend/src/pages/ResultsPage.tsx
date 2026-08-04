@@ -2,11 +2,14 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useParams } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { Deliverable, DeliverableKey, getProject, Project } from '../api'
+import { Deliverable, DeliverableFailure, DeliverableKey, getProject, Project } from '../api'
 import { availableDeliverables, buildBundleMarkdown } from '../deliverables'
 
 interface LocationState {
   deliverables: Deliverable
+  failures?: DeliverableFailure[]
+  /** Keys asked for in the run that produced this view, for an accurate "n of m". */
+  requested?: DeliverableKey[]
   project?: Partial<Project>
 }
 
@@ -73,6 +76,8 @@ export default function ResultsPage() {
   }, [id, state?.deliverables, state?.project])
 
   const deliverables = state?.deliverables ?? fetchedDeliverables ?? undefined
+  const failures = state?.failures ?? []
+  const requestedCount = state?.requested?.length ?? failures.length
   const tabs = useMemo(() => availableDeliverables(deliverables), [deliverables])
   const [activeTab, setActiveTab] = useState<DeliverableKey | null>(null)
 
@@ -145,6 +150,26 @@ export default function ResultsPage() {
           </div>
         </div>
       </header>
+
+      {failures.length > 0 && (
+        <div className="border-l-2 border-ember pl-4 py-3 flex flex-col gap-2">
+          <span className="caption text-ember">
+            {requestedCount - failures.length} of {requestedCount} generated
+          </span>
+          <ul className="flex flex-col gap-1">
+            {failures.map((failure) => (
+              <li key={failure.deliverable} className="text-[13px] text-paper-dim">
+                <span className="text-paper">{failure.label}</span> — {failure.message}
+              </li>
+            ))}
+          </ul>
+          {id && (
+            <Link to={`/wizard?edit=${id}`} className="btn-link self-start">
+              Retry in the wizard
+            </Link>
+          )}
+        </div>
+      )}
 
       <div className="grid grid-cols-12 gap-8 border-t border-ink-700 pt-8">
         <aside className="col-span-12 md:col-span-3">

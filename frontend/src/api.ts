@@ -69,6 +69,21 @@ export interface GenerateRequest {
 
 export type Deliverable = Partial<Record<DeliverableKey, string>>
 
+export interface DeliverableFailure {
+  deliverable: DeliverableKey
+  label: string
+  message: string
+}
+
+/**
+ * A generation run can partly succeed. `deliverables` is everything now saved;
+ * `failures` names the requested outputs that did not complete.
+ */
+export interface GenerationResult {
+  deliverables: Deliverable
+  failures: DeliverableFailure[]
+}
+
 export interface ProjectWithDeliverables {
   project: Project
   deliverables: Deliverable | null
@@ -143,8 +158,8 @@ export async function deleteProject(id: string): Promise<void> {
 export async function generateDeliverables(
   id: string,
   req: GenerateRequest
-): Promise<Deliverable> {
-  return request<Deliverable>(`/projects/${id}/generate`, {
+): Promise<GenerationResult> {
+  return request<GenerationResult>(`/projects/${id}/generate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(req),

@@ -9,7 +9,6 @@ import {
   generateDeliverables,
   getProject,
   Platform,
-  ProjectCreate,
   ProviderStatus,
   refineProject,
   updateProject,
@@ -69,6 +68,9 @@ export function useWizardController() {
   const [elapsed, setElapsed] = useState(0)
   const [apiError, setApiError] = useState('')
   const [loadingProject, setLoadingProject] = useState(Boolean(editId))
+  // Set the first time this wizard saves a project. Without it, a failed generation
+  // would leave editId null and the next attempt would create a duplicate project.
+  const [createdId, setCreatedId] = useState('')
 
   function loadModels() {
     setModelsLoaded(false)
@@ -180,13 +182,27 @@ export function useWizardController() {
     setDeliverables([...preset.deliverables])
   }
 
+  /**
+   * Return the id of this wizard's project, creating it only once. Every later call
+   * updates that same record, so retrying after a failure never forks a new project.
+   */
+  async function ensureProject(): Promise<string> {
+    const existingId = editId || createdId
+    if (existingId) {
+      await updateProject(existingId, form)
+      return existingId
+    }
+    const { id } = await createProject(form)
+    setCreatedId(id)
+    return id
+  }
+
   async function handleRefine() {
     if (!selectedModel || refining) return
     setRefining(true)
     setApiError('')
     try {
-      const projectId = editId ?? (await createProject(form)).id
-      if (editId) await updateProject(editId, form)
+      const projectId = await ensureProject()
       const questions = await refineProject(projectId, selectedModel)
       setRefinementQuestions(questions)
       if (!editId) {
@@ -214,15 +230,20 @@ export function useWizardController() {
     setGenerating(true)
     setApiError('')
     try {
-      const projectData: ProjectCreate = { ...form }
-      const projectId = editId ?? (await createProject(projectData)).id
-      if (editId) await updateProject(editId, projectData)
+      const projectId = await ensureProject()
       const result = await generateDeliverables(projectId, {
         model: selectedModel,
         deliverables,
         preset: selectedPreset,
       })
-      navigate(`/results/${projectId}`, { state: { deliverables: result, project: { ...form, id: projectId } } })
+      navigate(`/results/${projectId}`, {
+        state: {
+          deliverables: result.deliverables,
+          failures: result.failures,
+          requested: deliverables,
+          project: { ...form, id: projectId },
+        },
+      })
     } catch (error) {
       setApiError(errorMessage(error, 'Something went wrong. Please try again.'))
     } finally {

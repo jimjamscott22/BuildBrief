@@ -4,7 +4,13 @@ from dataclasses import dataclass
 from fastapi import HTTPException
 
 from app import providers
-from app.models import Deliverable, Project, RefinementResponse
+from app.models import (
+    Deliverable,
+    DeliverableFailure,
+    GenerationResult,
+    Project,
+    RefinementResponse,
+)
 from app.schemas import DeliverableKey
 
 
@@ -65,13 +71,22 @@ def system_context(project: Project) -> str:
     )
 
 
+def _as_http_exception(error: BaseException, label: str) -> HTTPException:
+    if isinstance(error, HTTPException):
+        return error
+    return HTTPException(
+        status_code=502,
+        detail=f"LLM generation failed while creating {label}.",
+    )
+
+
 async def generate_deliverables(
     project: Project,
     existing: Deliverable | None,
     model: str,
     deliverable_keys: list[DeliverableKey],
     preset: str | None = None,
-) -> Deliverable:
+) -> GenerationResult:
     if not deliverable_keys:
         raise HTTPException(status_code=400, detail="Select at least one deliverable.")
 
@@ -101,10 +116,38 @@ async def generate_deliverables(
             ) from exc
         return key, result
 
-    generated = await asyncio.gather(*(run_one(key) for key in deliverable_keys))
-    for key, value in generated:
+    # return_exceptions keeps one failing deliverable from discarding the others.
+    # A local model can spend minutes on each, so partial output is still worth saving.
+    outcomes = await asyncio.gather(
+        *(run_one(key) for key in deliverable_keys),
+        return_exceptions=True,
+    )
+
+    failures: list[DeliverableFailure] = []
+    first_error: BaseException | None = None
+
+    for key, outcome in zip(deliverable_keys, outcomes):
+        label = DELIVERABLE_PROMPTS[key].label
+        if isinstance(outcome, BaseException):
+            if first_error is None:
+                first_error = outcome
+            failures.append(
+                DeliverableFailure(
+                    deliverable=key,
+                    label=label,
+                    message=_as_http_exception(outcome, label).detail,
+                )
+            )
+            continue
+        _, value = outcome
         base[key] = value
-    return Deliverable(**base)
+
+    # Nothing came back at all: surface the original error rather than reporting
+    # a success that generated no new content.
+    if len(failures) == len(deliverable_keys) and first_error is not None:
+        raise _as_http_exception(first_error, failures[0].label)
+
+    return GenerationResult(deliverables=Deliverable(**base), failures=failures)
 
 
 async def refine_project(project: Project, model: str) -> RefinementResponse:

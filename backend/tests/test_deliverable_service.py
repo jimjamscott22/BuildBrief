@@ -49,11 +49,56 @@ def test_generation_preserves_unselected_existing_deliverables(monkeypatch):
         )
     )
 
-    assert result.spec == "# Old Spec"
-    assert result.agent_prompt == "# Old Prompt"
-    assert result.implementation_plan == "generated with ollama/test"
+    assert result.deliverables.spec == "# Old Spec"
+    assert result.deliverables.agent_prompt == "# Old Prompt"
+    assert result.deliverables.implementation_plan == "generated with ollama/test"
+    assert result.failures == []
     assert len(calls) == 1
     assert "Preset guidance" in calls[0]
+
+
+def test_partial_failure_keeps_the_deliverables_that_succeeded(monkeypatch):
+    async def fake_generate(model: str, prompt: str) -> str:
+        if "prompt engineer" in prompt:
+            raise RuntimeError("model dropped the connection")
+        return "generated"
+
+    monkeypatch.setattr(deliverables.providers, "generate", fake_generate)
+
+    result = asyncio.run(
+        deliverables.generate_deliverables(
+            project=make_project(),
+            existing=None,
+            model="ollama/test",
+            deliverable_keys=["spec", "implementation_plan", "agent_prompt"],
+        )
+    )
+
+    assert result.deliverables.spec == "generated"
+    assert result.deliverables.implementation_plan == "generated"
+    assert result.deliverables.agent_prompt is None
+    assert [failure.deliverable for failure in result.failures] == ["agent_prompt"]
+    assert result.failures[0].label == "Agent Prompt"
+    assert "Agent Prompt" in result.failures[0].message
+
+
+def test_total_failure_still_raises(monkeypatch):
+    async def fake_generate(model: str, prompt: str) -> str:
+        raise RuntimeError("provider is down")
+
+    monkeypatch.setattr(deliverables.providers, "generate", fake_generate)
+
+    with pytest.raises(HTTPException) as exc:
+        asyncio.run(
+            deliverables.generate_deliverables(
+                project=make_project(),
+                existing=None,
+                model="ollama/test",
+                deliverable_keys=["spec", "implementation_plan"],
+            )
+        )
+
+    assert exc.value.status_code == 502
 
 
 def test_generation_maps_provider_errors_to_http_error(monkeypatch):
