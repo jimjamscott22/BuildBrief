@@ -87,11 +87,11 @@ MariaDB closes idle connections after `wait_timeout` (28,800s by default, often 
 >
 > Verified by: `test_lmstudio_stream_yields_content_deltas`, `test_ollama_stream_yields_response_until_done`, `test_stream_generate_routes_prefix_and_rejects_unknown`, `test_prepare_generation_validates_before_building_prompts`, `test_stream_persists_before_completed_and_keeps_partial_failures`, `test_stream_cancels_unfinished_provider_when_consumer_closes`, `test_encode_sse_uses_named_json_frame`, `test_stream_generation_persists_completed_deliverable`, `test_stream_generation_validates_before_opening_stream`, the `readGenerationStream` split-frame and malformed-data cases, the controller immediate-handoff case, the generation-hook completion/cancellation/failure/unmount cases, and the Results live/cancel/error/saved-mode/history cases.
 
-`handleGenerate` fires one request and shows a counting timer. Nothing streams; nothing can be cancelled; a local 7B model producing three long markdown documents can sit near the 120s `httpx` timeout with zero feedback. If it does time out, see issue 1 — everything is lost.
+Originally, `handleGenerate` fired one buffered request and showed only a counting timer. A local 7B model producing three long markdown documents could sit near the 120s `httpx` timeout with zero feedback or cancellation.
 
-Both providers already support streaming: LM Studio takes `"stream": true` on `/v1/chat/completions`, and Ollama streams by default (the code explicitly opts out with `"stream": False`).
+The provider APIs already supported streaming: LM Studio accepts `"stream": true` on `/v1/chat/completions`, and Ollama streams when requested. The original buffered implementation did not expose either stream to Results.
 
-**Fix:** add `GET /api/projects/{id}/generate/stream` as an SSE endpoint that emits `{deliverable, delta}` events, and render tokens into the Results view as they arrive. This is the single highest-value change in the app — it converts the worst moment in the product into the most convincing one. Pair it with an `AbortController` on the client so users can stop a bad generation.
+**Implemented:** `POST /api/projects/{id}/generate/stream` emits named SSE events, including incremental `{deliverable, delta}` data. Results renders those deltas immediately, and its `AbortController` cancels unfinished provider streams.
 
 ### 4. The API is unauthenticated and bound to every interface ◐ PARTLY FIXED
 

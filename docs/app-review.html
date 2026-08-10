@@ -658,26 +658,23 @@
           </div>
           <p class="path">frontend/src/pages/wizard/useWizardController.ts:212 · backend/app/providers.py</p>
           <p>
-            One request, a counting timer, no streaming and no cancel. A local 7B model
-            producing three long markdown documents can sit near the 120s <code>httpx</code>
-            timeout with zero feedback — and if it times out, finding 01 means everything is
-            lost.
+            Originally, <code>handleGenerate</code> fired one buffered request and showed only
+            a counting timer. A local 7B model producing three long markdown documents could
+            sit near the 120s <code>httpx</code> timeout with zero feedback or cancellation.
           </p>
           <p>
-            Both providers already stream. LM Studio takes <code>"stream": true</code> on
-            <code>/v1/chat/completions</code>; Ollama streams by default and the code
-            explicitly opts out with <code>"stream": False</code>.
+            The provider APIs already supported streaming. LM Studio accepts
+            <code>"stream": true</code> on <code>/v1/chat/completions</code>, and Ollama streams
+            when requested. The original buffered implementation did not expose either stream
+            to Results.
           </p>
-          <div class="fix">
-            <span class="fix-label">Fix</span>
-            <p>
-              Add an SSE endpoint emitting <code>{deliverable, delta}</code> events and render
-              tokens into the Results view as they arrive, with an
-              <code>AbortController</code> so a bad generation can be stopped. This is the
-              single highest-value change available: it converts the worst moment in the
-              product into the most convincing one.
-            </p>
-          </div>
+          <p>
+            <strong>Implemented:</strong>
+            <code>POST /api/projects/{id}/generate/stream</code> emits named SSE events,
+            including incremental <code>{deliverable, delta}</code> data. Results renders those
+            deltas immediately, and its <code>AbortController</code> cancels unfinished provider
+            streams.
+          </p>
         </div>
       </article>
 
