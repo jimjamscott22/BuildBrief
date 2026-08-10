@@ -63,7 +63,7 @@ export function useWizardController() {
   const [deliverables, setDeliverables] = useState<DeliverableKey[]>(['spec'])
   const [selectedPreset, setSelectedPreset] = useState('mvp')
   const [generating, setGenerating] = useState(false)
-  const generationInProgress = useRef(false)
+  const projectActionInProgress = useRef(false)
   const [refining, setRefining] = useState(false)
   const [refinementQuestions, setRefinementQuestions] = useState<string[]>([])
   const [apiError, setApiError] = useState('')
@@ -190,7 +190,8 @@ export function useWizardController() {
   }
 
   async function handleRefine() {
-    if (!selectedModel || refining) return
+    if (!selectedModel || projectActionInProgress.current) return
+    projectActionInProgress.current = true
     setRefining(true)
     setApiError('')
     try {
@@ -203,6 +204,7 @@ export function useWizardController() {
     } catch (error) {
       setApiError(errorMessage(error, 'Could not generate refinement questions.'))
     } finally {
+      projectActionInProgress.current = false
       setRefining(false)
     }
   }
@@ -218,8 +220,8 @@ export function useWizardController() {
   }
 
   async function handleGenerate() {
-    if (!selectedModel || deliverables.length === 0 || generationInProgress.current) return
-    generationInProgress.current = true
+    if (!selectedModel || deliverables.length === 0 || projectActionInProgress.current) return
+    projectActionInProgress.current = true
     setGenerating(true)
     setApiError('')
     try {
@@ -238,12 +240,12 @@ export function useWizardController() {
     } catch (error) {
       setApiError(errorMessage(error, 'Something went wrong. Please try again.'))
     } finally {
-      generationInProgress.current = false
+      projectActionInProgress.current = false
       setGenerating(false)
     }
   }
 
-  const canGenerate = !!selectedModel && deliverables.length > 0 && !generating && !loadingProject
+  const canGenerate = !!selectedModel && deliverables.length > 0 && !generating && !refining && !loadingProject
   const stepLabel = STEP_LABELS[step - 1]
   const providerSummary = useMemo(() => {
     if (!modelsLoaded) return 'Checking providers'

@@ -101,4 +101,34 @@ describe('useWizardController generation handoff', () => {
       resolveProject?.({ id: 'project-1' })
     })
   })
+
+  it('prevents generation while refinement is saving the initial project', async () => {
+    let resolveProject: ((value: { id: string }) => void) | undefined
+    vi.mocked(api.createProject).mockReturnValue(
+      new Promise((resolve) => {
+        resolveProject = resolve
+      }),
+    )
+    vi.mocked(api.refineProject).mockResolvedValue(['Which platform constraints matter?'])
+    const { result } = await renderReadyWizard()
+
+    act(() => {
+      void result.current.handleRefine()
+    })
+    await waitFor(() => expect(api.createProject).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(result.current.refining).toBe(true))
+
+    expect(result.current.canGenerate).toBe(false)
+    act(() => {
+      void result.current.handleGenerate()
+    })
+    expect(api.createProject).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      resolveProject?.({ id: 'project-1' })
+    })
+    await waitFor(() => {
+      expect(api.refineProject).toHaveBeenCalledWith('project-1', 'ollama/test')
+    })
+  })
 })

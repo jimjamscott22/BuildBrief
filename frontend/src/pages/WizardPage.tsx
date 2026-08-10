@@ -104,6 +104,7 @@ export default function WizardPage() {
             appendRefinementAnswers={wizard.appendRefinementAnswers}
             applyPreset={wizard.applyPreset}
             deliverables={wizard.deliverables}
+            generating={wizard.generating}
             handleRefine={wizard.handleRefine}
             loadModels={wizard.loadModels}
             models={wizard.models}

@@ -9,6 +9,7 @@ export default function GenerateStep({
   appendRefinementAnswers,
   applyPreset,
   deliverables,
+  generating,
   handleRefine,
   loadModels,
   models,
@@ -25,6 +26,7 @@ export default function GenerateStep({
   appendRefinementAnswers: () => void
   applyPreset: (presetId: string) => void
   deliverables: DeliverableKey[]
+  generating: boolean
   handleRefine: () => void
   loadModels: () => void
   models: string[]
@@ -168,7 +170,7 @@ export default function GenerateStep({
       <div className="hairline pt-5 flex flex-col gap-3">
         <div className="flex items-center justify-between gap-3">
           <span className="caption text-paper">Clarifying Questions</span>
-          <button onClick={handleRefine} disabled={!selectedModel || refining} className="btn-ghost">
+          <button onClick={handleRefine} disabled={!selectedModel || refining || generating} className="btn-ghost">
             {refining ? 'Refining...' : 'Suggest Questions'}
           </button>
         </div>
