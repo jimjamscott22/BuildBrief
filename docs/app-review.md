@@ -192,7 +192,7 @@ Test coverage was 174 lines against 2,454 lines of application code, all of it b
 
 ## Feature suggestions
 
-**Streaming generation** — covered in issue 3. Do this one first; it changes how the app feels more than anything else on this list.
+**Streaming generation — completed.** Delivered under finding 3; it changed how the app feels more than anything else on this list.
 
 **Regenerate a single deliverable.** The API already supports it — `GenerateRequest.deliverables` takes a subset and the merge preserves the rest. Only the wizard exposes it, and only as a full four-step round trip. A "Regenerate this section" button on the Results page, with a model and preset picker, is a small addition on top of machinery that already exists.
 
