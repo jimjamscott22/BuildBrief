@@ -161,6 +161,7 @@ describe('useGenerationRun', () => {
 
   it('latches Stop when the aborted stream resolves cleanly', async () => {
     let finishStream: (() => void) | undefined
+    let finishReload: ((record: ProjectWithDeliverables) => void) | undefined
     let sendEvent: ((event: GenerationStreamEvent) => void) | undefined
     vi.mocked(api.streamDeliverables).mockImplementation(
       (_id, _request, onEvent) => {
@@ -170,7 +171,11 @@ describe('useGenerationRun', () => {
         })
       },
     )
-    vi.mocked(api.getProject).mockResolvedValue(savedRecord({ spec: '# Previously saved' }))
+    vi.mocked(api.getProject).mockReturnValue(
+      new Promise((resolve) => {
+        finishReload = resolve
+      }),
+    )
 
     const { result } = renderHook(() => useGenerationRun('project-1', request))
     expect(result.current.statuses.spec).toBe('queued')
@@ -183,10 +188,23 @@ describe('useGenerationRun', () => {
     act(() => result.current.stop())
     expect(result.current.phase).toBe('stopping')
 
-    await act(async () => {
+    act(() => {
       sendEvent?.({ type: 'delta', deliverable: 'spec', delta: ' late' })
+    })
+    expect(result.current.drafts.spec).toBe('# In progress')
+    expect(result.current.statuses.spec).toBe('generating')
+
+    await act(async () => {
       finishStream?.()
       await Promise.resolve()
+    })
+    await waitFor(() => expect(api.getProject).toHaveBeenCalledWith('project-1'))
+    expect(result.current.phase).toBe('stopping')
+    expect(result.current.drafts.spec).toBe('# In progress')
+    expect(result.current.savedRecord).toBeUndefined()
+
+    act(() => {
+      finishReload?.(savedRecord({ spec: '# Previously saved' }))
     })
 
     await waitFor(() => expect(result.current.phase).toBe('cancelled'))
@@ -197,11 +215,9 @@ describe('useGenerationRun', () => {
     expect(result.current.error).toBe('')
   })
 
-  it.each([
-    ['done', { type: 'done', failures: [] } as GenerationStreamEvent],
-    ['error', { type: 'error', message: 'Late provider error.' } as GenerationStreamEvent],
-  ])('ignores a late %s frame and rejection after Stop', async (_name, lateEvent) => {
+  it('ignores observable done-frame side effects after Stop', async () => {
     let rejectStream: ((reason: unknown) => void) | undefined
+    let finishReload: ((record: ProjectWithDeliverables) => void) | undefined
     let sendEvent: ((event: GenerationStreamEvent) => void) | undefined
     vi.mocked(api.streamDeliverables).mockImplementation(
       (_id, _request, onEvent) => {
@@ -211,16 +227,75 @@ describe('useGenerationRun', () => {
         })
       },
     )
-    vi.mocked(api.getProject).mockResolvedValue(savedRecord(null))
+    vi.mocked(api.getProject).mockReturnValue(
+      new Promise((resolve) => {
+        finishReload = resolve
+      }),
+    )
 
     const { result } = renderHook(() => useGenerationRun('project-1', request))
 
     act(() => result.current.stop())
+    act(() => {
+      sendEvent?.({
+        type: 'done',
+        failures: [{ deliverable: 'spec', label: 'Spec', message: 'Late failure.' }],
+      })
+    })
+    expect(result.current.phase).toBe('stopping')
+    expect(result.current.failures).toEqual([])
+
     await act(async () => {
-      sendEvent?.(lateEvent)
       rejectStream?.(new Error('Late transport failure.'))
       await Promise.resolve()
     })
+    await waitFor(() => expect(api.getProject).toHaveBeenCalledWith('project-1'))
+    expect(result.current.phase).toBe('stopping')
+    expect(result.current.failures).toEqual([])
+
+    act(() => finishReload?.(savedRecord(null)))
+
+    await waitFor(() => expect(result.current.phase).toBe('cancelled'))
+    expect(result.current.notice).toBe(
+      'Generation stopped. Incomplete drafts were not saved.',
+    )
+    expect(result.current.error).toBe('')
+  })
+
+  it('keeps Stop authoritative after a late error frame', async () => {
+    let rejectStream: ((reason: unknown) => void) | undefined
+    let finishReload: ((record: ProjectWithDeliverables) => void) | undefined
+    let sendEvent: ((event: GenerationStreamEvent) => void) | undefined
+    vi.mocked(api.streamDeliverables).mockImplementation(
+      (_id, _request, onEvent) => {
+        sendEvent = onEvent
+        return new Promise<void>((_resolve, reject) => {
+          rejectStream = reject
+        })
+      },
+    )
+    vi.mocked(api.getProject).mockReturnValue(
+      new Promise((resolve) => {
+        finishReload = resolve
+      }),
+    )
+
+    const { result } = renderHook(() => useGenerationRun('project-1', request))
+
+    act(() => result.current.stop())
+    act(() => sendEvent?.({ type: 'error', message: 'Late provider error.' }))
+    expect(result.current.phase).toBe('stopping')
+    expect(result.current.error).toBe('')
+
+    await act(async () => {
+      rejectStream?.(new Error('Late transport failure.'))
+      await Promise.resolve()
+    })
+    await waitFor(() => expect(api.getProject).toHaveBeenCalledWith('project-1'))
+    expect(result.current.phase).toBe('stopping')
+    expect(result.current.error).toBe('')
+
+    act(() => finishReload?.(savedRecord(null)))
 
     await waitFor(() => expect(result.current.phase).toBe('cancelled'))
     expect(result.current.notice).toBe(
@@ -333,42 +408,49 @@ describe('useGenerationRun', () => {
     expect(api.getProject).toHaveBeenCalledWith('project-1')
   })
 
-  it('aborts silently on unmount and ignores every late event', async () => {
-    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+  it.each([
+    [
+      'done and clean resolution',
+      { type: 'done', failures: [] } as GenerationStreamEvent,
+      'resolve',
+    ],
+    [
+      'error and rejection',
+      { type: 'error', message: 'Too late.' } as GenerationStreamEvent,
+      'reject',
+    ],
+  ])('does not reload after unmount on late %s', async (_name, lateEvent, settlement) => {
     let streamSignal: AbortSignal | undefined
     let sendEvent: ((event: GenerationStreamEvent) => void) | undefined
+    let finishStream: (() => void) | undefined
+    let rejectStream: ((reason: unknown) => void) | undefined
     vi.mocked(api.streamDeliverables).mockImplementation(
-      async (_id, _request, onEvent, signal) => {
+      (_id, _request, onEvent, signal) => {
         streamSignal = signal
         sendEvent = onEvent
-        await new Promise<void>((_resolve, reject) => {
-          signal.addEventListener('abort', () => reject(abortError()), { once: true })
+        return new Promise<void>((resolve, reject) => {
+          finishStream = resolve
+          rejectStream = reject
         })
       },
     )
+    vi.mocked(api.getProject).mockResolvedValue(savedRecord(null))
 
-    const observedDrafts: Array<string | undefined> = []
-    const { unmount } = renderHook(() => {
-      const run = useGenerationRun('project-1', request)
-      observedDrafts.push(run.drafts.spec)
-      return run
-    })
+    const { unmount } = renderHook(() => useGenerationRun('project-1', request))
     expect(streamSignal?.aborted).toBe(false)
 
-    const renderCountBeforeUnmount = observedDrafts.length
     unmount()
     expect(streamSignal?.aborted).toBe(true)
 
     await act(async () => {
-      sendEvent?.({ type: 'delta', deliverable: 'spec', delta: '# Too late' })
+      sendEvent?.(lateEvent)
+      if (settlement === 'resolve') finishStream?.()
+      else rejectStream?.(new Error('Late transport failure.'))
+      await Promise.resolve()
       await Promise.resolve()
     })
 
     expect(api.getProject).not.toHaveBeenCalled()
-    expect(observedDrafts).toHaveLength(renderCountBeforeUnmount)
-    expect(observedDrafts).not.toContain('# Too late')
-    expect(consoleError).not.toHaveBeenCalled()
-    consoleError.mockRestore()
   })
 
   it('ignores events from a superseded request', async () => {
