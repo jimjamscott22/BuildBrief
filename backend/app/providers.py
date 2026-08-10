@@ -4,7 +4,10 @@ Supports LM Studio (OpenAI-compatible) and Ollama (native API).
 Both providers are probed at request time; unreachable providers are silently omitted.
 """
 
+import json
 import os
+from collections.abc import AsyncIterator
+
 import httpx
 from dotenv import load_dotenv
 
@@ -15,6 +18,7 @@ load_dotenv()
 LM_STUDIO_URL = os.getenv("LM_STUDIO_URL", "http://localhost:1234")
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
 TIMEOUT = 5.0  # seconds for model listing; generation uses a longer timeout
+GENERATION_TIMEOUT = httpx.Timeout(120.0, connect=5.0)
 
 
 class LMStudioProvider:
@@ -61,6 +65,28 @@ class LMStudioProvider:
             r.raise_for_status()
             return r.json()["choices"][0]["message"]["content"]
 
+    async def stream(self, model_id: str, prompt: str) -> AsyncIterator[str]:
+        payload = {
+            "model": model_id,
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0.7,
+            "stream": True,
+        }
+        async with httpx.AsyncClient(timeout=GENERATION_TIMEOUT) as client:
+            async with client.stream(
+                "POST", f"{LM_STUDIO_URL}/v1/chat/completions", json=payload
+            ) as response:
+                response.raise_for_status()
+                async for line in response.aiter_lines():
+                    if not line.startswith("data:"):
+                        continue
+                    value = line.removeprefix("data:").strip()
+                    if not value or value == "[DONE]":
+                        continue
+                    content = json.loads(value)["choices"][0]["delta"].get("content")
+                    if content:
+                        yield content
+
 
 class OllamaProvider:
     """Ollama native API at OLLAMA_URL."""
@@ -102,6 +128,23 @@ class OllamaProvider:
             r.raise_for_status()
             return r.json()["response"]
 
+    async def stream(self, model_name: str, prompt: str) -> AsyncIterator[str]:
+        payload = {"model": model_name, "prompt": prompt, "stream": True}
+        async with httpx.AsyncClient(timeout=GENERATION_TIMEOUT) as client:
+            async with client.stream(
+                "POST", f"{OLLAMA_URL}/api/generate", json=payload
+            ) as response:
+                response.raise_for_status()
+                async for line in response.aiter_lines():
+                    if not line.strip():
+                        continue
+                    frame = json.loads(line)
+                    content = frame.get("response")
+                    if content:
+                        yield content
+                    if frame.get("done") is True:
+                        break
+
 
 lmstudio = LMStudioProvider()
 ollama = OllamaProvider()
@@ -127,14 +170,22 @@ async def get_model_status() -> ModelsResponse:
     )
 
 
-async def generate(prefixed_model: str, prompt: str) -> str:
-    """
-    Route generation to the correct provider based on the 'lmstudio/' or 'ollama/' prefix.
-    Raises ValueError for unknown prefixes.
-    """
+def split_model_id(prefixed_model: str):
     if prefixed_model.startswith("lmstudio/"):
-        return await lmstudio.generate(prefixed_model[len("lmstudio/"):], prompt)
-    elif prefixed_model.startswith("ollama/"):
-        return await ollama.generate(prefixed_model[len("ollama/"):], prompt)
-    else:
-        raise ValueError(f"Unknown model prefix in: {prefixed_model}")
+        return lmstudio, prefixed_model.removeprefix("lmstudio/")
+    if prefixed_model.startswith("ollama/"):
+        return ollama, prefixed_model.removeprefix("ollama/")
+    raise ValueError(f"Unknown model prefix in: {prefixed_model}")
+
+
+async def generate(prefixed_model: str, prompt: str) -> str:
+    """Route buffered generation to the provider identified by its prefix."""
+    provider, model_id = split_model_id(prefixed_model)
+    return await provider.generate(model_id, prompt)
+
+
+async def stream_generate(prefixed_model: str, prompt: str) -> AsyncIterator[str]:
+    """Stream generation deltas from the provider identified by its prefix."""
+    provider, model_id = split_model_id(prefixed_model)
+    async for delta in provider.stream(model_id, prompt):
+        yield delta
