@@ -3,9 +3,11 @@ import type { ReactNode } from 'react'
 import {
   MemoryRouter,
   Route,
+  Router,
   Routes,
   useLocation,
   type Location,
+  type Navigator,
 } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../api'
@@ -92,6 +94,30 @@ function renderGeneratingResults(observer?: ReactNode) {
   )
 }
 
+function renderGeneratingResultsBeforeReplacement() {
+  const navigator: Navigator = {
+    createHref: () => '/results/project-1',
+    go: vi.fn(),
+    push: vi.fn(),
+    replace: vi.fn(),
+  }
+
+  return render(
+    <Router
+      location={{
+        pathname: '/results/project-1',
+        search: '',
+        hash: '',
+        state: { generationRequest, project },
+        key: 'live-results',
+      }}
+      navigator={navigator}
+    >
+      <ResultsRoute />
+    </Router>,
+  )
+}
+
 describe('ResultsPage live generation', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -158,6 +184,81 @@ describe('ResultsPage live generation', () => {
     expect(screen.getByRole('heading', { name: 'Saved spec' })).toBeInTheDocument()
     expect(screen.queryByText('Incomplete draft')).not.toBeInTheDocument()
     expect(screen.queryByText('Unsaved plan')).not.toBeInTheDocument()
+  })
+
+  it('never falls back to an incomplete draft when the terminal saved record is empty', () => {
+    vi.mocked(useGenerationRun).mockReturnValue(
+      runState({
+        phase: 'cancelled',
+        drafts: { spec: '# Incomplete draft', implementation_plan: '# Unsaved plan' },
+        statuses: { spec: 'generating', implementation_plan: 'queued' },
+        notice: 'Generation stopped. Incomplete drafts were not saved.',
+        savedRecord: { project, deliverables: null },
+      }),
+    )
+
+    renderGeneratingResultsBeforeReplacement()
+
+    expect(screen.queryByRole('heading', { name: 'Incomplete draft' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Unsaved plan' })).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Generation stopped. Incomplete drafts were not saved.',
+    )
+  })
+
+  it('keeps an empty cancellation notice and recovery navigation after state replacement', async () => {
+    vi.mocked(useGenerationRun).mockImplementation((_id, request) =>
+      request
+        ? runState({
+            phase: 'cancelled',
+            drafts: { spec: '# Incomplete draft' },
+            statuses: { spec: 'generating', implementation_plan: 'queued' },
+            notice: 'Generation stopped. Incomplete drafts were not saved.',
+            savedRecord: { project, deliverables: null },
+          })
+        : runState(),
+    )
+
+    renderGeneratingResults()
+
+    await waitFor(() => {
+      expect(
+        vi.mocked(useGenerationRun).mock.calls.some(([, request]) => request === undefined),
+      ).toBe(true)
+    })
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Generation stopped. Incomplete drafts were not saved.',
+    )
+    expect(screen.queryByRole('heading', { name: 'Incomplete draft' })).not.toBeInTheDocument()
+    expect(screen.getByText('No generated deliverables to display.')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Edit Brief' })).toHaveAttribute(
+      'href',
+      '/wizard?edit=project-1',
+    )
+    expect(screen.getByRole('link', { name: 'Start Over' })).toHaveAttribute('href', '/wizard')
+  })
+
+  it('keeps a terminal transport alert visible with empty saved output after replacement', async () => {
+    vi.mocked(useGenerationRun).mockImplementation((_id, request) =>
+      request
+        ? runState({
+            phase: 'failed',
+            drafts: { spec: '# Unsaved transport draft' },
+            statuses: { spec: 'generating', implementation_plan: 'queued' },
+            error: 'The generation provider disconnected.',
+            savedRecord: { project, deliverables: null },
+          })
+        : runState(),
+    )
+
+    renderGeneratingResults()
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'The generation provider disconnected.',
+    )
+    expect(screen.queryByRole('heading', { name: 'Unsaved transport draft' })).not.toBeInTheDocument()
+    expect(screen.getByText('No generated deliverables to display.')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Library' })).toHaveAttribute('href', '/library')
   })
 
   it('renders a run-level generation error as an alert', () => {
@@ -259,6 +360,22 @@ describe('ResultsPage saved results and history', () => {
     expect(screen.getByRole('button', { name: 'Export Bundle' })).toBeEnabled()
   })
 
+  it('keeps the empty-state message and library recovery for a truly empty saved project', async () => {
+    vi.mocked(api.getProject).mockResolvedValue({ project, deliverables: null })
+
+    render(
+      <MemoryRouter initialEntries={['/results/project-1']}>
+        <ResultsRoute />
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByText('No generated deliverables to display.')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Back to Library' })).toHaveAttribute(
+      'href',
+      '/library',
+    )
+  })
+
   it('preserves saved partial-failure details and result navigation', () => {
     render(
       <MemoryRouter
@@ -355,5 +472,68 @@ describe('ResultsPage saved results and history', () => {
     expect(screen.getByRole('heading', { name: 'Authoritative spec' })).toBeInTheDocument()
     expect(useGenerationRun).toHaveBeenCalled()
     expect(vi.mocked(useGenerationRun).mock.calls.every(([, request]) => request === undefined)).toBe(true)
+  })
+
+  it('preserves all-deliverable failures and retry recovery after an empty result remount', async () => {
+    let currentLocation: Location | undefined
+    function LocationObserver() {
+      currentLocation = useLocation()
+      return null
+    }
+
+    const failures: api.DeliverableFailure[] = [
+      {
+        deliverable: 'spec',
+        label: 'Specification Document',
+        message: 'Spec generation failed',
+      },
+      {
+        deliverable: 'implementation_plan',
+        label: 'Implementation Plan',
+        message: 'Plan generation failed',
+      },
+    ]
+    vi.mocked(useGenerationRun).mockImplementation((_id, request) =>
+      request
+        ? runState({
+            phase: 'failed',
+            drafts: { spec: '# Unsaved spec', implementation_plan: '# Unsaved plan' },
+            statuses: { spec: 'failed', implementation_plan: 'failed' },
+            failures,
+            savedRecord: { project, deliverables: null },
+          })
+        : runState(),
+    )
+
+    const firstRender = renderGeneratingResults(<LocationObserver />)
+    await waitFor(() => {
+      expect(currentLocation?.state).toEqual({
+        deliverables: {},
+        failures,
+        requested: ['spec', 'implementation_plan'],
+        project,
+      })
+    })
+
+    const replacedEntry = {
+      pathname: currentLocation?.pathname ?? '/results/project-1',
+      state: currentLocation?.state,
+    }
+    firstRender.unmount()
+    vi.mocked(useGenerationRun).mockClear()
+    render(
+      <MemoryRouter initialEntries={[replacedEntry]}>
+        <ResultsRoute />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByText('0 of 2 generated')).toBeInTheDocument()
+    expect(screen.getByText(/Spec generation failed/)).toBeInTheDocument()
+    expect(screen.getByText(/Plan generation failed/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Retry in the wizard' })).toHaveAttribute(
+      'href',
+      '/wizard?edit=project-1',
+    )
+    expect(screen.getByText('No generated deliverables to display.')).toBeInTheDocument()
   })
 })

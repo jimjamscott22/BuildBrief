@@ -117,7 +117,7 @@ export default function ResultsPage() {
   }, [generationKey, location.pathname, navigate, run.error, run.notice, terminalReady])
 
   const deliverables = generatingMode
-    ? (run.savedRecord?.deliverables ?? run.drafts)
+    ? (run.savedRecord !== undefined ? (run.savedRecord.deliverables ?? {}) : run.drafts)
     : (state?.deliverables ?? fetchedDeliverables ?? undefined)
   const failures = generatingMode ? run.failures : (state?.failures ?? [])
   const requested = generatingMode ? generationRequest.deliverables : state?.requested
@@ -151,17 +151,9 @@ export default function ResultsPage() {
     )
   }
 
-  if (!deliverables || tabs.length === 0) {
-    return (
-      <div className="py-24 flex flex-col items-center gap-5">
-        <span className="caption text-paper-mute">No generated deliverables to display.</span>
-        <Link to="/library" className="btn-ghost">Back to Library</Link>
-      </div>
-    )
-  }
-
+  const renderedDeliverables = deliverables ?? {}
   const activeConfig = tabs.find((tab) => tab.key === activeTab)
-  const content = activeTab ? (deliverables[activeTab] ?? '') : ''
+  const content = activeTab ? (renderedDeliverables[activeTab] ?? '') : ''
   const activeStatus = activeTab ? run.statuses[activeTab] : undefined
   const currentExportDisabled = generatingMode ? activeStatus !== 'complete' : content.length === 0
   const bundleExportDisabled =
@@ -175,8 +167,7 @@ export default function ResultsPage() {
   }
 
   function handleBundleDownload() {
-    if (!deliverables) return
-    downloadMarkdown('buildbrief-bundle.md', buildBundleMarkdown(title, deliverables))
+    downloadMarkdown('buildbrief-bundle.md', buildBundleMarkdown(title, renderedDeliverables))
   }
 
   return (
@@ -257,7 +248,13 @@ export default function ResultsPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-12 gap-8 border-t border-ink-700 pt-8">
+      {tabs.length === 0 ? (
+        <div className="py-24 flex flex-col items-center gap-5 border-t border-ink-700">
+          <span className="caption text-paper-mute">No generated deliverables to display.</span>
+          <Link to="/library" className="btn-ghost">Back to Library</Link>
+        </div>
+      ) : (
+        <div className="grid grid-cols-12 gap-8 border-t border-ink-700 pt-8">
         <aside className="col-span-12 md:col-span-3">
           <div className="md:sticky md:top-8 flex flex-col gap-6">
             <span className="caption text-paper-mute">Sections</span>
@@ -339,7 +336,8 @@ export default function ResultsPage() {
             <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
           </article>
         </div>
-      </div>
+        </div>
+      )}
     </div>
   )
 }
