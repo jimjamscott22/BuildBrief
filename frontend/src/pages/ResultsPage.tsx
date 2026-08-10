@@ -1,12 +1,25 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Link, useLocation, useParams } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { Deliverable, DeliverableFailure, DeliverableKey, getProject, Project } from '../api'
-import { availableDeliverables, buildBundleMarkdown } from '../deliverables'
+import {
+  type Deliverable,
+  type DeliverableFailure,
+  type DeliverableKey,
+  type GenerateRequest,
+  getProject,
+  type Project,
+} from '../api'
+import {
+  availableDeliverables,
+  buildBundleMarkdown,
+  DELIVERABLE_OPTIONS,
+} from '../deliverables'
+import { useGenerationRun } from './results/useGenerationRun'
 
 interface LocationState {
-  deliverables: Deliverable
+  generationRequest?: GenerateRequest
+  deliverables?: Deliverable
   failures?: DeliverableFailure[]
   /** Keys asked for in the run that produced this view, for an accurate "n of m". */
   requested?: DeliverableKey[]
@@ -14,6 +27,17 @@ interface LocationState {
 }
 
 const pad = (n: number) => n.toString().padStart(2, '0')
+
+const statusLabel = {
+  queued: 'Queued',
+  generating: 'Generating',
+  complete: 'Complete',
+  failed: 'Failed',
+} as const
+
+function formatElapsed(seconds: number) {
+  return `${pad(Math.floor(seconds / 60))}:${pad(seconds % 60)}`
+}
 
 function downloadMarkdown(filename: string, content: string) {
   const blob = new Blob([content], { type: 'text/markdown' })
@@ -28,44 +52,50 @@ function downloadMarkdown(filename: string, content: string) {
 export default function ResultsPage() {
   const { id } = useParams<{ id: string }>()
   const location = useLocation()
+  const navigate = useNavigate()
   const state = location.state as LocationState | null
-  const [project, setProject] = useState<Project | null>(
-    state?.project && id
-      ? {
-          id,
-          title: state.project.title ?? 'Results',
-          description: state.project.description ?? '',
-          target_users: state.project.target_users ?? '',
-          platform: state.project.platform ?? 'web',
-          tech_preferences: state.project.tech_preferences ?? '',
-          complexity: state.project.complexity ?? 'medium',
-          constraints: state.project.constraints ?? '',
-          extra_context: state.project.extra_context ?? '',
-          created_at: state.project.created_at ?? '',
-          updated_at: state.project.updated_at ?? '',
-        }
-      : null
-  )
+  const generationRequest = state?.generationRequest
+  const generatingMode = generationRequest !== undefined
+  const hasSavedRouteState = state?.deliverables !== undefined && state.project !== undefined
+  const run = useGenerationRun(id, generationRequest)
+  const [fetchedProject, setFetchedProject] = useState<Project | null>(null)
   const [fetchedDeliverables, setFetchedDeliverables] = useState<Deliverable | null>(null)
-  const [loading, setLoading] = useState(!state?.deliverables || !state?.project)
-  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(!generatingMode && !hasSavedRouteState)
+  const [fetchError, setFetchError] = useState('')
+  const [terminalNotice, setTerminalNotice] = useState('')
+  const [terminalError, setTerminalError] = useState('')
+  const replacedRun = useRef('')
+
+  const terminalPhase =
+    run.phase === 'completed' || run.phase === 'cancelled' || run.phase === 'failed'
+  const terminalReady = generatingMode && terminalPhase && run.savedRecord !== undefined
+  const generationKey = generationRequest
+    ? `${id ?? ''}|${generationRequest.model}|${generationRequest.preset ?? ''}|${generationRequest.deliverables.join(',')}`
+    : ''
+  const terminalState = useRef<LocationState | null>(null)
+  if (terminalReady && run.savedRecord) {
+    terminalState.current = {
+      deliverables: run.savedRecord.deliverables ?? {},
+      failures: run.failures,
+      requested: generationRequest.deliverables,
+      project: run.savedRecord.project,
+    }
+  }
 
   useEffect(() => {
-    if (!id) return
+    if (!id || generatingMode || hasSavedRouteState) return
 
     let ignore = false
-    if (!state?.deliverables || !state?.project) {
-      setLoading(true)
-    }
-    setError('')
+    setLoading(true)
+    setFetchError('')
     getProject(id)
       .then((record) => {
         if (ignore) return
-        setProject(record.project)
+        setFetchedProject(record.project)
         setFetchedDeliverables(record.deliverables)
       })
       .catch(() => {
-        if (!ignore) setError('Could not load that saved project.')
+        if (!ignore) setFetchError('Could not load that saved project.')
       })
       .finally(() => {
         if (!ignore) setLoading(false)
@@ -73,23 +103,36 @@ export default function ResultsPage() {
     return () => {
       ignore = true
     }
-  }, [id, state?.deliverables, state?.project])
-
-  const deliverables = state?.deliverables ?? fetchedDeliverables ?? undefined
-  const failures = state?.failures ?? []
-  const requestedCount = state?.requested?.length ?? failures.length
-  const tabs = useMemo(() => availableDeliverables(deliverables), [deliverables])
-  const [activeTab, setActiveTab] = useState<DeliverableKey | null>(null)
+  }, [generatingMode, hasSavedRouteState, id])
 
   useEffect(() => {
-    if (tabs.length === 0) {
-      setActiveTab(null)
-      return
-    }
-    if (!activeTab || !tabs.some((tab) => tab.key === activeTab)) {
-      setActiveTab(tabs[0].key)
-    }
-  }, [activeTab, tabs])
+    if (!terminalReady || !generationKey || replacedRun.current === generationKey) return
+    const replacementState = terminalState.current
+    if (!replacementState) return
+
+    replacedRun.current = generationKey
+    setTerminalNotice(run.notice)
+    setTerminalError(run.error)
+    navigate(location.pathname, { replace: true, state: replacementState })
+  }, [generationKey, location.pathname, navigate, run.error, run.notice, terminalReady])
+
+  const deliverables = generatingMode
+    ? (run.savedRecord?.deliverables ?? run.drafts)
+    : (state?.deliverables ?? fetchedDeliverables ?? undefined)
+  const failures = generatingMode ? run.failures : (state?.failures ?? [])
+  const requested = generatingMode ? generationRequest.deliverables : state?.requested
+  const requestedCount = requested?.length ?? failures.length
+  const tabs = generatingMode
+    ? DELIVERABLE_OPTIONS.filter((option) => requested?.includes(option.key))
+    : availableDeliverables(deliverables)
+  const [selectedTab, setSelectedTab] = useState<DeliverableKey | null>(null)
+  const activeTab =
+    selectedTab && tabs.some((tab) => tab.key === selectedTab)
+      ? selectedTab
+      : (tabs[0]?.key ?? null)
+  const completeCount = requested?.filter((key) => run.statuses[key] === 'complete').length ?? 0
+  const displayNotice = generatingMode ? run.notice : terminalNotice
+  const displayRunError = generatingMode ? run.error : terminalError
 
   if (loading) {
     return (
@@ -99,10 +142,10 @@ export default function ResultsPage() {
     )
   }
 
-  if (error) {
+  if (fetchError) {
     return (
       <div className="py-24 flex flex-col items-center gap-5">
-        <p className="text-rose">{error}</p>
+        <p role="alert" className="text-rose">{fetchError}</p>
         <Link to="/library" className="btn-ghost">Back to Library</Link>
       </div>
     )
@@ -119,7 +162,12 @@ export default function ResultsPage() {
 
   const activeConfig = tabs.find((tab) => tab.key === activeTab)
   const content = activeTab ? (deliverables[activeTab] ?? '') : ''
-  const title = project?.title ?? 'Results'
+  const activeStatus = activeTab ? run.statuses[activeTab] : undefined
+  const currentExportDisabled = generatingMode ? activeStatus !== 'complete' : content.length === 0
+  const bundleExportDisabled =
+    generatingMode && (run.phase === 'running' || run.phase === 'stopping')
+  const title =
+    run.savedRecord?.project.title ?? state?.project?.title ?? fetchedProject?.title ?? 'Results'
 
   function handleDownload() {
     if (!activeConfig) return
@@ -151,6 +199,44 @@ export default function ResultsPage() {
         </div>
       </header>
 
+      {generatingMode && (
+        <div
+          aria-live="polite"
+          className="border border-ink-700 bg-ink-900/40 px-4 py-3 flex items-center justify-between gap-4 flex-wrap"
+        >
+          <div className="flex items-center gap-4 flex-wrap">
+            <span className="caption text-cyan-300">
+              {completeCount} of {requestedCount} complete
+            </span>
+            <span className="font-mono text-sm text-paper-dim">
+              {formatElapsed(run.elapsed)}
+            </span>
+          </div>
+          {run.phase === 'running' && (
+            <button type="button" onClick={run.stop} className="btn-ghost">
+              Stop generation
+            </button>
+          )}
+          {run.phase === 'stopping' && (
+            <button type="button" disabled className="btn-ghost">
+              Stopping...
+            </button>
+          )}
+        </div>
+      )}
+
+      {displayNotice && (
+        <p role="status" className="border-l-2 border-cyan-400 pl-4 py-3 text-paper-dim">
+          {displayNotice}
+        </p>
+      )}
+
+      {displayRunError && (
+        <p role="alert" className="border-l-2 border-rose pl-4 py-3 text-rose">
+          {displayRunError}
+        </p>
+      )}
+
       {failures.length > 0 && (
         <div className="border-l-2 border-ember pl-4 py-3 flex flex-col gap-2">
           <span className="caption text-ember">
@@ -181,7 +267,7 @@ export default function ResultsPage() {
                 return (
                   <button
                     key={key}
-                    onClick={() => setActiveTab(key)}
+                    onClick={() => setSelectedTab(key)}
                     className={[
                       'group flex items-start gap-3 py-3 pl-4 pr-2 border-l-2 text-left transition-colors duration-200',
                       active
@@ -197,6 +283,11 @@ export default function ResultsPage() {
                         {label}
                       </span>
                       <span className="caption text-paper-mute mt-0.5">{short}</span>
+                      {generatingMode && (
+                        <span className="caption text-paper-dim mt-1">
+                          {statusLabel[run.statuses[key] ?? 'queued']}
+                        </span>
+                      )}
                     </span>
                   </button>
                 )
@@ -204,10 +295,18 @@ export default function ResultsPage() {
             </nav>
 
             <div className="hairline pt-4 flex flex-col gap-2">
-              <button onClick={handleDownload} className="btn-ghost w-full">
+              <button
+                onClick={handleDownload}
+                disabled={currentExportDisabled}
+                className="btn-ghost w-full"
+              >
                 Export Current
               </button>
-              <button onClick={handleBundleDownload} className="btn-ghost w-full">
+              <button
+                onClick={handleBundleDownload}
+                disabled={bundleExportDisabled}
+                className="btn-ghost w-full"
+              >
                 Export Bundle
               </button>
             </div>
@@ -236,6 +335,7 @@ export default function ResultsPage() {
               prose-td:text-paper prose-td:border-ink-800
               prose-table:border-collapse"
           >
+            {/* Generated Markdown intentionally cannot inject raw HTML: no rehype-raw plugin. */}
             <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
           </article>
         </div>
