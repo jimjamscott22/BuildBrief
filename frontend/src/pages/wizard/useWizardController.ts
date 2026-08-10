@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import {
   ApiError,
@@ -6,7 +6,7 @@ import {
   createProject,
   DeliverableKey,
   fetchModels,
-  generateDeliverables,
+  GenerateRequest,
   getProject,
   Platform,
   ProviderStatus,
@@ -63,12 +63,12 @@ export function useWizardController() {
   const [deliverables, setDeliverables] = useState<DeliverableKey[]>(['spec'])
   const [selectedPreset, setSelectedPreset] = useState('mvp')
   const [generating, setGenerating] = useState(false)
+  const generationInProgress = useRef(false)
   const [refining, setRefining] = useState(false)
   const [refinementQuestions, setRefinementQuestions] = useState<string[]>([])
-  const [elapsed, setElapsed] = useState(0)
   const [apiError, setApiError] = useState('')
   const [loadingProject, setLoadingProject] = useState(Boolean(editId))
-  // Set the first time this wizard saves a project. Without it, a failed generation
+  // Set the first time this wizard saves a project. Without it, a failed save
   // would leave editId null and the next attempt would create a duplicate project.
   const [createdId, setCreatedId] = useState('')
 
@@ -134,14 +134,6 @@ export function useWizardController() {
       ignore = true
     }
   }, [editId])
-
-  useEffect(() => {
-    if (!generating) return
-    setElapsed(0)
-    const start = Date.now()
-    const id = setInterval(() => setElapsed(Math.floor((Date.now() - start) / 1000)), 1000)
-    return () => clearInterval(id)
-  }, [generating])
 
   function updateForm(field: keyof FormState, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }))
@@ -226,27 +218,27 @@ export function useWizardController() {
   }
 
   async function handleGenerate() {
-    if (!selectedModel || deliverables.length === 0) return
+    if (!selectedModel || deliverables.length === 0 || generationInProgress.current) return
+    generationInProgress.current = true
     setGenerating(true)
     setApiError('')
     try {
       const projectId = await ensureProject()
-      const result = await generateDeliverables(projectId, {
+      const generationRequest: GenerateRequest = {
         model: selectedModel,
-        deliverables,
+        deliverables: [...deliverables],
         preset: selectedPreset,
-      })
+      }
       navigate(`/results/${projectId}`, {
         state: {
-          deliverables: result.deliverables,
-          failures: result.failures,
-          requested: deliverables,
+          generationRequest,
           project: { ...form, id: projectId },
         },
       })
     } catch (error) {
       setApiError(errorMessage(error, 'Something went wrong. Please try again.'))
     } finally {
+      generationInProgress.current = false
       setGenerating(false)
     }
   }
@@ -266,7 +258,6 @@ export function useWizardController() {
     canGenerate,
     deliverables,
     editId,
-    elapsed,
     errors,
     form,
     generating,

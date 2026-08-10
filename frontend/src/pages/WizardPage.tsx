@@ -146,7 +146,7 @@ export default function WizardPage() {
               className="btn-primary"
             >
               {wizard.generating
-                ? `Generating - ${pad(Math.floor(wizard.elapsed / 60))}:${pad(wizard.elapsed % 60)}`
+                ? 'Preparing...'
                 : wizard.editId
                   ? 'Regenerate brief'
                   : 'Generate brief'}
