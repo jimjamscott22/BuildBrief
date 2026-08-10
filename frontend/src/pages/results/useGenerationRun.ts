@@ -68,10 +68,6 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Generation failed.'
 }
 
-function isAbortError(error: unknown): boolean {
-  return typeof error === 'object' && error !== null && 'name' in error && error.name === 'AbortError'
-}
-
 export function useGenerationRun(
   projectId: string | undefined,
   request: GenerateRequest | undefined,
@@ -145,7 +141,7 @@ export function useGenerationRun(
     const isCurrent = () => mounted && controllerRef.current === controller
 
     const handleEvent = (event: GenerationStreamEvent) => {
-      if (!isCurrent() || terminalPhase) return
+      if (!isCurrent() || terminalPhase || stopRequested.current) return
       switch (event.type) {
         case 'started':
           return
@@ -177,6 +173,7 @@ export function useGenerationRun(
         }
         case 'done':
           terminalPhase = 'completed'
+          streamingRef.current = false
           setFailures(
             event.failures
               .map((failure) => typedFailure(failure, deliverables))
@@ -186,6 +183,7 @@ export function useGenerationRun(
         case 'error':
           terminalPhase = 'failed'
           terminalError = event.message
+          streamingRef.current = false
       }
     }
 
@@ -202,7 +200,10 @@ export function useGenerationRun(
         setStatuses((current) => {
           const next = { ...current }
           for (const deliverable of deliverables) {
-            if (record.deliverables?.[deliverable] !== undefined) {
+            if (
+              record.deliverables?.[deliverable] !== undefined
+              && current[deliverable] !== 'failed'
+            ) {
               next[deliverable] = 'complete'
             }
           }
@@ -224,16 +225,20 @@ export function useGenerationRun(
         await streamDeliverables(projectId, generationRequest, handleEvent, controller.signal)
         if (!isCurrent()) return
         streamingRef.current = false
+        if (stopRequested.current) {
+          await reloadAndSettle('cancelled', '', STOPPED_NOTICE)
+          return
+        }
         await reloadAndSettle(terminalPhase ?? 'completed', terminalError)
       } catch (streamError) {
         if (!isCurrent()) return
         streamingRef.current = false
-        if (terminalPhase) {
-          await reloadAndSettle(terminalPhase, terminalError)
+        if (stopRequested.current) {
+          await reloadAndSettle('cancelled', '', STOPPED_NOTICE)
           return
         }
-        if (isAbortError(streamError) && stopRequested.current) {
-          await reloadAndSettle('cancelled', '', STOPPED_NOTICE)
+        if (terminalPhase) {
+          await reloadAndSettle(terminalPhase, terminalError)
           return
         }
         await reloadAndSettle('failed', errorMessage(streamError))

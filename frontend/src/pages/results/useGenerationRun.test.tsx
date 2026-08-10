@@ -1,4 +1,5 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
+import { StrictMode, type PropsWithChildren } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../../api'
 import type { GenerateRequest, ProjectWithDeliverables } from '../../api'
@@ -40,6 +41,10 @@ function savedRecord(
 
 function abortError() {
   return new DOMException('The operation was aborted.', 'AbortError')
+}
+
+function strictWrapper({ children }: PropsWithChildren) {
+  return <StrictMode>{children}</StrictMode>
 }
 
 describe('useGenerationRun', () => {
@@ -137,6 +142,7 @@ describe('useGenerationRun', () => {
 
     const { result } = renderHook(() => useGenerationRun('project-1', stoppedRequest))
     await waitFor(() => expect(result.current.drafts.spec).toBe('# Incomplete'))
+    expect(result.current.statuses.spec).toBe('generating')
 
     act(() => result.current.stop())
     expect(result.current.phase).toBe('stopping')
@@ -152,6 +158,118 @@ describe('useGenerationRun', () => {
     )
     expect(result.current.error).toBe('')
   })
+
+  it('latches Stop when the aborted stream resolves cleanly', async () => {
+    let finishStream: (() => void) | undefined
+    let sendEvent: ((event: GenerationStreamEvent) => void) | undefined
+    vi.mocked(api.streamDeliverables).mockImplementation(
+      (_id, _request, onEvent) => {
+        sendEvent = onEvent
+        return new Promise<void>((resolve) => {
+          finishStream = resolve
+        })
+      },
+    )
+    vi.mocked(api.getProject).mockResolvedValue(savedRecord({ spec: '# Previously saved' }))
+
+    const { result } = renderHook(() => useGenerationRun('project-1', request))
+    expect(result.current.statuses.spec).toBe('queued')
+
+    act(() => {
+      sendEvent?.({ type: 'delta', deliverable: 'spec', delta: '# In progress' })
+    })
+    expect(result.current.statuses.spec).toBe('generating')
+
+    act(() => result.current.stop())
+    expect(result.current.phase).toBe('stopping')
+
+    await act(async () => {
+      sendEvent?.({ type: 'delta', deliverable: 'spec', delta: ' late' })
+      finishStream?.()
+      await Promise.resolve()
+    })
+
+    await waitFor(() => expect(result.current.phase).toBe('cancelled'))
+    expect(result.current.drafts.spec).toBe('# Previously saved')
+    expect(result.current.notice).toBe(
+      'Generation stopped. Incomplete drafts were not saved.',
+    )
+    expect(result.current.error).toBe('')
+  })
+
+  it.each([
+    ['done', { type: 'done', failures: [] } as GenerationStreamEvent],
+    ['error', { type: 'error', message: 'Late provider error.' } as GenerationStreamEvent],
+  ])('ignores a late %s frame and rejection after Stop', async (_name, lateEvent) => {
+    let rejectStream: ((reason: unknown) => void) | undefined
+    let sendEvent: ((event: GenerationStreamEvent) => void) | undefined
+    vi.mocked(api.streamDeliverables).mockImplementation(
+      (_id, _request, onEvent) => {
+        sendEvent = onEvent
+        return new Promise<void>((_resolve, reject) => {
+          rejectStream = reject
+        })
+      },
+    )
+    vi.mocked(api.getProject).mockResolvedValue(savedRecord(null))
+
+    const { result } = renderHook(() => useGenerationRun('project-1', request))
+
+    act(() => result.current.stop())
+    await act(async () => {
+      sendEvent?.(lateEvent)
+      rejectStream?.(new Error('Late transport failure.'))
+      await Promise.resolve()
+    })
+
+    await waitFor(() => expect(result.current.phase).toBe('cancelled'))
+    expect(result.current.notice).toBe(
+      'Generation stopped. Incomplete drafts were not saved.',
+    )
+    expect(result.current.error).toBe('')
+  })
+
+  it.each([
+    ['done', { type: 'done', failures: [] } as GenerationStreamEvent, 'completed', ''],
+    [
+      'error',
+      { type: 'error', message: 'Provider failed first.' } as GenerationStreamEvent,
+      'failed',
+      'Provider failed first.',
+    ],
+  ])(
+    'preserves a terminal %s frame received before Stop',
+    async (_name, terminalEvent, expectedPhase, expectedError) => {
+      let finishStream: (() => void) | undefined
+      let sendEvent: ((event: GenerationStreamEvent) => void) | undefined
+      let streamSignal: AbortSignal | undefined
+      vi.mocked(api.streamDeliverables).mockImplementation(
+        (_id, _request, onEvent, signal) => {
+          sendEvent = onEvent
+          streamSignal = signal
+          return new Promise<void>((resolve) => {
+            finishStream = resolve
+          })
+        },
+      )
+      vi.mocked(api.getProject).mockResolvedValue(savedRecord(null))
+
+      const { result } = renderHook(() => useGenerationRun('project-1', request))
+
+      act(() => sendEvent?.(terminalEvent))
+      act(() => result.current.stop())
+      expect(streamSignal?.aborted).toBe(false)
+
+      await act(async () => {
+        finishStream?.()
+        await Promise.resolve()
+      })
+
+      await waitFor(() => expect(result.current.phase).toBe(expectedPhase))
+      expect(result.current.error).toBe(expectedError)
+      expect(result.current.notice).toBe('')
+    },
+  )
 
   it('retains deliverable failures and completes from a done event', async () => {
     const partialRequest: GenerateRequest = {
@@ -170,13 +288,16 @@ describe('useGenerationRun', () => {
       onEvent({ type: 'failed', ...failure })
       onEvent({ type: 'done', failures: [failure] })
     })
-    vi.mocked(api.getProject).mockResolvedValue(savedRecord({ spec: '# Complete' }))
+    vi.mocked(api.getProject).mockResolvedValue(
+      savedRecord({ spec: '# Complete', agent_prompt: '# Older saved prompt' }),
+    )
 
     const { result } = renderHook(() => useGenerationRun('project-1', partialRequest))
 
     await waitFor(() => expect(result.current.phase).toBe('completed'))
     expect(result.current.statuses.spec).toBe('complete')
     expect(result.current.statuses.agent_prompt).toBe('failed')
+    expect(result.current.drafts.agent_prompt).toBe('# Older saved prompt')
     expect(result.current.failures).toEqual([failure])
     expect(api.getProject).toHaveBeenCalledWith('project-1')
   })
@@ -226,9 +347,15 @@ describe('useGenerationRun', () => {
       },
     )
 
-    const { unmount } = renderHook(() => useGenerationRun('project-1', request))
+    const observedDrafts: Array<string | undefined> = []
+    const { unmount } = renderHook(() => {
+      const run = useGenerationRun('project-1', request)
+      observedDrafts.push(run.drafts.spec)
+      return run
+    })
     expect(streamSignal?.aborted).toBe(false)
 
+    const renderCountBeforeUnmount = observedDrafts.length
     unmount()
     expect(streamSignal?.aborted).toBe(true)
 
@@ -238,6 +365,8 @@ describe('useGenerationRun', () => {
     })
 
     expect(api.getProject).not.toHaveBeenCalled()
+    expect(observedDrafts).toHaveLength(renderCountBeforeUnmount)
+    expect(observedDrafts).not.toContain('# Too late')
     expect(consoleError).not.toHaveBeenCalled()
     consoleError.mockRestore()
   })
@@ -245,6 +374,8 @@ describe('useGenerationRun', () => {
   it('ignores events from a superseded request', async () => {
     let firstSignal: AbortSignal | undefined
     let sendFirstEvent: ((event: GenerationStreamEvent) => void) | undefined
+    let sendSecondEvent: ((event: GenerationStreamEvent) => void) | undefined
+    let finishSecondStream: (() => void) | undefined
     vi.mocked(api.streamDeliverables).mockImplementation(
       async (_id, generationRequest, onEvent, signal) => {
         if (generationRequest.model === 'ollama/first') {
@@ -255,10 +386,10 @@ describe('useGenerationRun', () => {
           })
           return
         }
-        onEvent({ type: 'started', deliverables: ['spec'] })
-        onEvent({ type: 'delta', deliverable: 'spec', delta: '# Current' })
-        onEvent({ type: 'completed', deliverable: 'spec' })
-        onEvent({ type: 'done', failures: [] })
+        sendSecondEvent = onEvent
+        await new Promise<void>((resolve) => {
+          finishSecondStream = resolve
+        })
       },
     )
     vi.mocked(api.getProject).mockResolvedValue(savedRecord({ spec: '# Current' }))
@@ -275,8 +406,63 @@ describe('useGenerationRun', () => {
       sendFirstEvent?.({ type: 'delta', deliverable: 'spec', delta: '# Stale' })
       await Promise.resolve()
     })
+    expect(result.current.drafts.spec).toBe('')
+
+    act(() => {
+      sendSecondEvent?.({ type: 'delta', deliverable: 'spec', delta: '# Current' })
+    })
+    expect(result.current.drafts.spec).toBe('# Current')
+
+    await act(async () => {
+      sendSecondEvent?.({ type: 'completed', deliverable: 'spec' })
+      sendSecondEvent?.({ type: 'done', failures: [] })
+      finishSecondStream?.()
+      await Promise.resolve()
+    })
     await waitFor(() => expect(result.current.phase).toBe('completed'))
 
+    expect(result.current.drafts.spec).toBe('# Current')
+    expect(api.getProject).toHaveBeenCalledTimes(1)
+  })
+
+  it('aborts StrictMode rehearsal work and settles only the current request', async () => {
+    const signals: AbortSignal[] = []
+    const eventSenders: Array<(event: GenerationStreamEvent) => void> = []
+    const streamResolvers: Array<() => void> = []
+    vi.mocked(api.streamDeliverables).mockImplementation(
+      (_id, _request, onEvent, signal) => {
+        signals.push(signal)
+        eventSenders.push(onEvent)
+        return new Promise<void>((resolve, reject) => {
+          streamResolvers.push(resolve)
+          signal.addEventListener('abort', () => reject(abortError()), { once: true })
+        })
+      },
+    )
+    vi.mocked(api.getProject).mockResolvedValue(savedRecord({ spec: '# Current' }))
+
+    const { result } = renderHook(() => useGenerationRun('project-1', request), {
+      wrapper: strictWrapper,
+    })
+
+    await waitFor(() => expect(api.streamDeliverables).toHaveBeenCalledTimes(2))
+    expect(signals[0].aborted).toBe(true)
+    expect(signals[1].aborted).toBe(false)
+
+    act(() => {
+      eventSenders[0]({ type: 'delta', deliverable: 'spec', delta: '# Rehearsal' })
+      eventSenders[1]({ type: 'delta', deliverable: 'spec', delta: '# Current' })
+      eventSenders[1]({ type: 'completed', deliverable: 'spec' })
+      eventSenders[1]({ type: 'done', failures: [] })
+    })
+    expect(result.current.drafts.spec).toBe('# Current')
+
+    await act(async () => {
+      streamResolvers[1]()
+      await Promise.resolve()
+    })
+
+    await waitFor(() => expect(result.current.phase).toBe('completed'))
     expect(result.current.drafts.spec).toBe('# Current')
     expect(api.getProject).toHaveBeenCalledTimes(1)
   })
