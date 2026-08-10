@@ -81,7 +81,11 @@ _engine = create_engine(url, future=True)
 
 MariaDB closes idle connections after `wait_timeout` (28,800s by default, often much lower on a Pi image). The first request after an idle period gets a dead pooled connection and a "MySQL server has gone away" 500. Add `pool_pre_ping=True, pool_recycle=1800`. Two keyword arguments, and it eliminates a class of intermittent failure that is miserable to debug.
 
-### 3. Generation is a blind 120-second wait
+### 3. Generation is a blind 120-second wait ✅ FIXED
+
+> **Fixed.** Generation now uses a POST SSE stream consumed with fetch. LM Studio SSE and Ollama NDJSON deltas render in Results as they arrive; each completed deliverable is persisted independently; AbortController stops unfinished provider streams and reloads completed saved work. The buffered endpoint remains compatible.
+>
+> Verified by: `test_lmstudio_stream_yields_content_deltas`, `test_ollama_stream_yields_response_until_done`, `test_stream_generate_routes_prefix_and_rejects_unknown`, `test_prepare_generation_validates_before_building_prompts`, `test_stream_persists_before_completed_and_keeps_partial_failures`, `test_stream_cancels_unfinished_provider_when_consumer_closes`, `test_encode_sse_uses_named_json_frame`, `test_stream_generation_persists_completed_deliverable`, `test_stream_generation_validates_before_opening_stream`, the `readGenerationStream` split-frame and malformed-data cases, the controller immediate-handoff case, the generation-hook completion/cancellation/failure/unmount cases, and the Results live/cancel/error/saved-mode/history cases.
 
 `handleGenerate` fires one request and shows a counting timer. Nothing streams; nothing can be cancelled; a local 7B model producing three long markdown documents can sit near the 120s `httpx` timeout with zero feedback. If it does time out, see issue 1 — everything is lost.
 
@@ -211,7 +215,7 @@ Test coverage was 174 lines against 2,454 lines of application code, all of it b
 | 4b | Shared-secret auth + a per-IP cap on `/generate` | S | Open | The other half of finding 04; needed before any non-loopback use |
 | 5 | Alembic | S | Open | Cheapest now, at two tables |
 | 6 | CI running the checks that already pass | S | Open | Locks in a currently-green baseline |
-| 7 | Streaming generation (SSE) | M | Open | The highest-impact product change |
+| 7 | Streaming generation (SSE) | M | ✅ Done | The highest-impact product change |
 | 8 | Provider tests, then Vitest on `useWizardController` | M | Partly done | Router tests landed with item 1; the rest makes everything above safe to change |
 | 9 | Debounce/abort Library search; delete the duplicate client filter | S | Open | Visible responsiveness win |
 | 10 | Theme flash, copy-to-clipboard, `React.lazy` on Results | S | Open | Small polish, immediately noticeable |

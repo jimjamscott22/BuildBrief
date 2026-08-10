@@ -622,15 +622,40 @@
       </article>
 
       <!-- 3 -->
-      <article class="finding sev-high">
+      <article class="finding sev-done resolved">
         <div class="rail"><span class="rank">03</span></div>
         <div class="body">
           <div class="meta">
-            <span class="chip sev">High</span>
+            <span class="chip sev">Fixed</span>
+            <span class="chip tag">Was: High</span>
             <span class="chip tag">Feature</span>
             <span class="chip tag">UX</span>
           </div>
           <h3>Generation is a blind 120-second wait</h3>
+          <div class="resolution">
+            <span class="fix-label">Resolution</span>
+            <p>
+              Fixed. Generation now uses a POST SSE stream consumed with fetch. LM Studio SSE
+              and Ollama NDJSON deltas render in Results as they arrive; each completed
+              deliverable is persisted independently; AbortController stops unfinished
+              provider streams and reloads completed saved work. The buffered endpoint remains
+              compatible.
+            </p>
+            <p class="path">
+              Verified by: test_lmstudio_stream_yields_content_deltas,
+              test_ollama_stream_yields_response_until_done,
+              test_stream_generate_routes_prefix_and_rejects_unknown,
+              test_prepare_generation_validates_before_building_prompts,
+              test_stream_persists_before_completed_and_keeps_partial_failures,
+              test_stream_cancels_unfinished_provider_when_consumer_closes,
+              test_encode_sse_uses_named_json_frame,
+              test_stream_generation_persists_completed_deliverable,
+              test_stream_generation_validates_before_opening_stream, the
+              readGenerationStream split-frame and malformed-data cases, the controller
+              immediate-handoff case, the generation-hook completion/cancellation/failure/unmount
+              cases, and the Results live/cancel/error/saved-mode/history cases.
+            </p>
+          </div>
           <p class="path">frontend/src/pages/wizard/useWizardController.ts:212 · backend/app/providers.py</p>
           <p>
             One request, a counting timer, no streaming and no cancel. A local 7B model
@@ -1062,7 +1087,7 @@
           <tr><td class="num">4b</td><td>Shared-secret auth + a per-IP cap on <code>/generate</code></td><td class="effort">S</td><td><span class="chip sev sev-high">Open</span></td><td>The other half of finding 04; needed before any non-loopback use</td></tr>
           <tr><td class="num">05</td><td>Alembic</td><td class="effort">S</td><td><span class="chip sev sev-crit">Next</span></td><td>Cheapest now, at two tables</td></tr>
           <tr><td class="num">06</td><td>CI running the checks that already pass</td><td class="effort">S</td><td><span class="chip tag">Open</span></td><td>Locks in a currently-green baseline</td></tr>
-          <tr><td class="num">07</td><td>Streaming generation over SSE</td><td class="effort">M</td><td><span class="chip tag">Open</span></td><td>The highest-impact product change</td></tr>
+          <tr><td class="num">07</td><td>Streaming generation over SSE</td><td class="effort">M</td><td><span class="chip sev sev-done">Done</span></td><td>The highest-impact product change</td></tr>
           <tr><td class="num">08</td><td>Provider tests, then Vitest on <code>useWizardController</code></td><td class="effort">M</td><td><span class="chip sev sev-high">Part</span></td><td>Router tests landed with item 01; the rest makes everything above safe to change</td></tr>
           <tr><td class="num">09</td><td>Debounce/abort Library search; delete the duplicate client filter</td><td class="effort">S</td><td><span class="chip tag">Open</span></td><td>Visible responsiveness win</td></tr>
           <tr><td class="num">10</td><td>Theme flash, copy-to-clipboard, <code>React.lazy</code> on Results</td><td class="effort">S</td><td><span class="chip tag">Open</span></td><td>Small polish, immediately noticeable</td></tr>
