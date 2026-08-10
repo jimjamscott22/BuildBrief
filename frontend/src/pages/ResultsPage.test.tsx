@@ -206,7 +206,13 @@ describe('ResultsPage live generation', () => {
     )
   })
 
-  it('keeps an empty cancellation notice and recovery navigation after state replacement', async () => {
+  it('keeps an empty cancellation notice and recovery navigation after a true remount', async () => {
+    let currentLocation: Location | undefined
+    function LocationObserver() {
+      currentLocation = useLocation()
+      return null
+    }
+
     vi.mocked(useGenerationRun).mockImplementation((_id, request) =>
       request
         ? runState({
@@ -219,13 +225,31 @@ describe('ResultsPage live generation', () => {
         : runState(),
     )
 
-    renderGeneratingResults()
+    const firstRender = renderGeneratingResults(<LocationObserver />)
 
     await waitFor(() => {
-      expect(
-        vi.mocked(useGenerationRun).mock.calls.some(([, request]) => request === undefined),
-      ).toBe(true)
+      expect(currentLocation?.state).toEqual({
+        deliverables: {},
+        failures: [],
+        requested: ['spec', 'implementation_plan'],
+        project,
+        terminalNotice: 'Generation stopped. Incomplete drafts were not saved.',
+      })
     })
+
+    const replacedEntry = {
+      pathname: currentLocation?.pathname ?? '/results/project-1',
+      state: currentLocation?.state,
+    }
+    firstRender.unmount()
+    vi.mocked(useGenerationRun).mockClear()
+    vi.mocked(api.getProject).mockClear()
+    render(
+      <MemoryRouter initialEntries={[replacedEntry]}>
+        <ResultsRoute />
+      </MemoryRouter>,
+    )
+
     expect(screen.getByRole('status')).toHaveTextContent(
       'Generation stopped. Incomplete drafts were not saved.',
     )
@@ -236,9 +260,17 @@ describe('ResultsPage live generation', () => {
       '/wizard?edit=project-1',
     )
     expect(screen.getByRole('link', { name: 'Start Over' })).toHaveAttribute('href', '/wizard')
+    expect(vi.mocked(useGenerationRun).mock.calls.every(([, request]) => request === undefined)).toBe(true)
+    expect(api.getProject).not.toHaveBeenCalled()
   })
 
-  it('keeps a terminal transport alert visible with empty saved output after replacement', async () => {
+  it('keeps a terminal transport alert with empty saved output after a true remount', async () => {
+    let currentLocation: Location | undefined
+    function LocationObserver() {
+      currentLocation = useLocation()
+      return null
+    }
+
     vi.mocked(useGenerationRun).mockImplementation((_id, request) =>
       request
         ? runState({
@@ -251,14 +283,39 @@ describe('ResultsPage live generation', () => {
         : runState(),
     )
 
-    renderGeneratingResults()
+    const firstRender = renderGeneratingResults(<LocationObserver />)
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
+    await waitFor(() => {
+      expect(currentLocation?.state).toEqual({
+        deliverables: {},
+        failures: [],
+        requested: ['spec', 'implementation_plan'],
+        project,
+        terminalError: 'The generation provider disconnected.',
+      })
+    })
+
+    const replacedEntry = {
+      pathname: currentLocation?.pathname ?? '/results/project-1',
+      state: currentLocation?.state,
+    }
+    firstRender.unmount()
+    vi.mocked(useGenerationRun).mockClear()
+    vi.mocked(api.getProject).mockClear()
+    render(
+      <MemoryRouter initialEntries={[replacedEntry]}>
+        <ResultsRoute />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
       'The generation provider disconnected.',
     )
     expect(screen.queryByRole('heading', { name: 'Unsaved transport draft' })).not.toBeInTheDocument()
     expect(screen.getByText('No generated deliverables to display.')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Library' })).toHaveAttribute('href', '/library')
+    expect(vi.mocked(useGenerationRun).mock.calls.every(([, request]) => request === undefined)).toBe(true)
+    expect(api.getProject).not.toHaveBeenCalled()
   })
 
   it('renders a run-level generation error as an alert', () => {

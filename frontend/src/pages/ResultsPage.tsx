@@ -24,6 +24,8 @@ interface LocationState {
   /** Keys asked for in the run that produced this view, for an accurate "n of m". */
   requested?: DeliverableKey[]
   project?: Partial<Project>
+  terminalNotice?: string
+  terminalError?: string
 }
 
 const pad = (n: number) => n.toString().padStart(2, '0')
@@ -62,8 +64,6 @@ export default function ResultsPage() {
   const [fetchedDeliverables, setFetchedDeliverables] = useState<Deliverable | null>(null)
   const [loading, setLoading] = useState(!generatingMode && !hasSavedRouteState)
   const [fetchError, setFetchError] = useState('')
-  const [terminalNotice, setTerminalNotice] = useState('')
-  const [terminalError, setTerminalError] = useState('')
   const replacedRun = useRef('')
 
   const terminalPhase =
@@ -79,6 +79,8 @@ export default function ResultsPage() {
       failures: run.failures,
       requested: generationRequest.deliverables,
       project: run.savedRecord.project,
+      ...(run.notice ? { terminalNotice: run.notice } : {}),
+      ...(run.error ? { terminalError: run.error } : {}),
     }
   }
 
@@ -111,10 +113,8 @@ export default function ResultsPage() {
     if (!replacementState) return
 
     replacedRun.current = generationKey
-    setTerminalNotice(run.notice)
-    setTerminalError(run.error)
     navigate(location.pathname, { replace: true, state: replacementState })
-  }, [generationKey, location.pathname, navigate, run.error, run.notice, terminalReady])
+  }, [generationKey, location.pathname, navigate, terminalReady])
 
   const deliverables = generatingMode
     ? (run.savedRecord !== undefined ? (run.savedRecord.deliverables ?? {}) : run.drafts)
@@ -131,8 +131,8 @@ export default function ResultsPage() {
       ? selectedTab
       : (tabs[0]?.key ?? null)
   const completeCount = requested?.filter((key) => run.statuses[key] === 'complete').length ?? 0
-  const displayNotice = generatingMode ? run.notice : terminalNotice
-  const displayRunError = generatingMode ? run.error : terminalError
+  const displayNotice = generatingMode ? run.notice : (state?.terminalNotice ?? '')
+  const displayRunError = generatingMode ? run.error : (state?.terminalError ?? '')
 
   if (loading) {
     return (
