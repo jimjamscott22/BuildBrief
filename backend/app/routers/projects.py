@@ -1,20 +1,31 @@
+import json
+from collections.abc import AsyncIterator
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.concurrency import run_in_threadpool
+from fastapi.responses import StreamingResponse
 
 from app import storage
 from app.models import (
+    Deliverable,
     GenerationResult,
     ProjectSummary,
     ProjectWithDeliverables,
     RefinementResponse,
 )
 from app.schemas import GenerateRequest, ProjectCreate, ProjectUpdate, RefineRequest
+from app.services import generation_stream
+from app.services.deliverables import prepare_generation
 from app.services.deliverables import generate_deliverables as generate_project_deliverables
 from app.services.deliverables import refine_project
 
 router = APIRouter()
+
+
+def encode_sse(event: generation_stream.GenerationStreamEvent) -> bytes:
+    data = json.dumps(event.data, ensure_ascii=False, separators=(",", ":"))
+    return f"event: {event.event}\ndata: {data}\n\n".encode()
 
 # Storage is synchronous (PyMySQL), so these handlers are declared `def` rather than
 # `async def`. FastAPI runs plain `def` handlers in a threadpool; an `async def`
@@ -88,6 +99,37 @@ async def generate_deliverables(project_id: str, body: GenerateRequest):
     if saved is None:
         raise HTTPException(status_code=404, detail="Project not found")
     return GenerationResult(deliverables=saved, failures=result.failures)
+
+
+@router.post("/{project_id}/generate/stream")
+async def stream_deliverables(project_id: str, body: GenerateRequest):
+    record = await run_in_threadpool(storage.get_project, project_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    prepare_generation(record.project, body.model, body.deliverables, body.preset)
+
+    async def persist(key, content):
+        partial = Deliverable(**{key: content})
+        saved = await run_in_threadpool(storage.save_deliverables, project_id, partial)
+        if saved is None:
+            raise RuntimeError("Project disappeared before generation completed.")
+
+    async def events() -> AsyncIterator[bytes]:
+        async for event in generation_stream.stream_generation(
+            record.project,
+            body.model,
+            body.deliverables,
+            body.preset,
+            persist,
+        ):
+            yield encode_sse(event)
+
+    return StreamingResponse(
+        events(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @router.post("/{project_id}/refine", response_model=RefinementResponse)

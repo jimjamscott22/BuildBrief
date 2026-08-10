@@ -8,12 +8,16 @@ same database, which is why these tests use a file-backed SQLite database rather
 than `:memory:` — an in-memory database is not shared across threads.
 """
 
+import json
+
 import pytest
 from fastapi.testclient import TestClient
 
 from app import storage
 from app.main import app
+from app.routers import projects as projects_router
 from app.services import deliverables as deliverable_service
+from app.services.generation_stream import GenerationStreamEvent
 
 
 PROJECT_BODY = {
@@ -40,6 +44,116 @@ def create_project(client) -> str:
     response = client.post("/api/projects", json=PROJECT_BODY)
     assert response.status_code == 201
     return response.json()["id"]
+
+
+def parse_sse(text: str):
+    frames = []
+    for block in text.strip().split("\n\n"):
+        lines = block.splitlines()
+        frames.append(
+            (
+                lines[0].removeprefix("event: "),
+                json.loads(lines[1].removeprefix("data: ")),
+            )
+        )
+    return frames
+
+
+def test_encode_sse_uses_named_json_frame():
+    frame = projects_router.encode_sse(
+        GenerationStreamEvent("delta", {"deliverable": "spec", "delta": "å\n"})
+    )
+    assert frame.startswith(b"event: delta\ndata: ")
+    assert frame.endswith(b"\n\n")
+    assert json.loads(frame.decode().split("data: ", 1)[1]) == {
+        "deliverable": "spec",
+        "delta": "å\n",
+    }
+
+
+def test_stream_generation_persists_completed_deliverable(client, monkeypatch):
+    async def fake_stream(model: str, prompt: str):
+        yield "# Live"
+        yield "\nSaved"
+
+    monkeypatch.setattr(
+        projects_router.generation_stream.providers, "stream_generate", fake_stream
+    )
+    project_id = create_project(client)
+    response = client.post(
+        f"/api/projects/{project_id}/generate/stream",
+        json={"model": "ollama/test", "deliverables": ["spec"], "preset": "mvp"},
+    )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/event-stream")
+    frames = parse_sse(response.text)
+    assert [event for event, _ in frames] == [
+        "started",
+        "delta",
+        "delta",
+        "completed",
+        "done",
+    ]
+    saved = client.get(f"/api/projects/{project_id}").json()["deliverables"]
+    assert saved["spec"] == "# Live\nSaved"
+
+
+def test_stream_generation_persists_success_when_another_deliverable_fails(
+    client, monkeypatch
+):
+    async def fake_stream(model: str, prompt: str):
+        if "prompt engineer" in prompt:
+            raise RuntimeError("model dropped the connection")
+        yield "# Generated"
+
+    monkeypatch.setattr(
+        projects_router.generation_stream.providers, "stream_generate", fake_stream
+    )
+    project_id = create_project(client)
+    response = client.post(
+        f"/api/projects/{project_id}/generate/stream",
+        json={
+            "model": "ollama/test",
+            "deliverables": ["spec", "agent_prompt"],
+        },
+    )
+
+    assert response.status_code == 200
+    frames = parse_sse(response.text)
+    assert "failed" in [event for event, _ in frames]
+    assert frames[-1][0] == "done"
+    saved = client.get(f"/api/projects/{project_id}").json()["deliverables"]
+    assert saved["spec"] == "# Generated"
+    assert saved["agent_prompt"] is None
+
+
+def test_stream_generation_emits_error_when_all_deliverables_fail(client, monkeypatch):
+    async def fake_stream(model: str, prompt: str):
+        raise RuntimeError("provider is down")
+        yield ""
+
+    monkeypatch.setattr(
+        projects_router.generation_stream.providers, "stream_generate", fake_stream
+    )
+    project_id = create_project(client)
+    response = client.post(
+        f"/api/projects/{project_id}/generate/stream",
+        json={"model": "ollama/test", "deliverables": ["spec"]},
+    )
+
+    assert response.status_code == 200
+    assert parse_sse(response.text)[-1][0] == "error"
+
+
+def test_stream_generation_validates_before_opening_stream(client):
+    project_id = create_project(client)
+    response = client.post(
+        f"/api/projects/{project_id}/generate/stream",
+        json={"model": "remote/test", "deliverables": ["spec"]},
+    )
+    assert response.status_code == 400
+    assert "Unknown model prefix" in response.json()["detail"]
 
 
 def test_project_crud_round_trip(client):
