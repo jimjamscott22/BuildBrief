@@ -1,3 +1,5 @@
+import { readGenerationStream, type GenerationStreamEvent } from './generationStream'
+
 const BASE = '/api'
 
 export type Platform = 'web' | 'mobile' | 'desktop' | 'cli'
@@ -14,17 +16,21 @@ export class ApiError extends Error {
   }
 }
 
+async function apiErrorFromResponse(response: Response): Promise<ApiError> {
+  let message = `Request failed with status ${response.status}`
+  try {
+    const body = await response.json()
+    if (typeof body.detail === 'string') message = body.detail
+  } catch {
+    // Keep the status-based fallback.
+  }
+  return new ApiError(message, response.status)
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, init)
   if (!res.ok) {
-    let message = `Request failed with status ${res.status}`
-    try {
-      const body = await res.json()
-      if (typeof body.detail === 'string') message = body.detail
-    } catch {
-      // Keep the status-based fallback.
-    }
-    throw new ApiError(message, res.status)
+    throw await apiErrorFromResponse(res)
   }
   if (res.status === 204) return undefined as T
   return res.json()
@@ -164,6 +170,26 @@ export async function generateDeliverables(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(req),
   })
+}
+
+export async function streamDeliverables(
+  id: string,
+  req: GenerateRequest,
+  onEvent: (event: GenerationStreamEvent) => void,
+  signal: AbortSignal,
+): Promise<void> {
+  const response = await fetch(`${BASE}/projects/${id}/generate/stream`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'text/event-stream',
+    },
+    body: JSON.stringify(req),
+    signal,
+  })
+  if (!response.ok) throw await apiErrorFromResponse(response)
+  if (!response.body) throw new Error('Generation stream is unavailable.')
+  await readGenerationStream(response.body, onEvent)
 }
 
 export async function refineProject(id: string, model: string): Promise<string[]> {
