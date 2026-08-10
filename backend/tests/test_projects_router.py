@@ -9,6 +9,7 @@ than `:memory:` — an in-memory database is not shared across threads.
 """
 
 import json
+import threading
 
 import pytest
 from fastapi.testclient import TestClient
@@ -97,6 +98,59 @@ def test_stream_generation_persists_completed_deliverable(client, monkeypatch):
     ]
     saved = client.get(f"/api/projects/{project_id}").json()["deliverables"]
     assert saved["spec"] == "# Live\nSaved"
+
+
+def test_stream_generation_serializes_first_deliverable_saves(client, monkeypatch):
+    """Two completed fields must survive storage's single-row creation boundary."""
+
+    async def fake_stream(model: str, prompt: str):
+        if "prompt engineer" in prompt:
+            yield "# Agent Prompt"
+        else:
+            yield "# Specification"
+
+    first_save_entered = threading.Event()
+    release_first_save = threading.Event()
+    save_deliverables = projects_router.storage.save_deliverables
+
+    def reject_overlapping_first_save(project_id, deliverable):
+        if first_save_entered.is_set():
+            release_first_save.set()
+            raise RuntimeError("concurrent first saves are unsafe")
+        first_save_entered.set()
+        try:
+            release_first_save.wait(timeout=0.2)
+            return save_deliverables(project_id, deliverable)
+        finally:
+            first_save_entered.clear()
+
+    monkeypatch.setattr(
+        projects_router.generation_stream.providers, "stream_generate", fake_stream
+    )
+    monkeypatch.setattr(
+        projects_router.storage, "save_deliverables", reject_overlapping_first_save
+    )
+    project_id = create_project(client)
+    response = client.post(
+        f"/api/projects/{project_id}/generate/stream",
+        json={
+            "model": "ollama/test",
+            "deliverables": ["spec", "agent_prompt"],
+        },
+    )
+
+    frames = parse_sse(response.text)
+    assert [event for event, _ in frames] == [
+        "started",
+        "delta",
+        "delta",
+        "completed",
+        "completed",
+        "done",
+    ]
+    saved = client.get(f"/api/projects/{project_id}").json()["deliverables"]
+    assert saved["spec"] == "# Specification"
+    assert saved["agent_prompt"] == "# Agent Prompt"
 
 
 def test_stream_generation_persists_success_when_another_deliverable_fails(

@@ -1,3 +1,4 @@
+import asyncio
 import json
 from collections.abc import AsyncIterator
 from typing import Annotated
@@ -108,12 +109,16 @@ async def stream_deliverables(project_id: str, body: GenerateRequest):
         raise HTTPException(status_code=404, detail="Project not found")
 
     prepare_generation(record.project, body.model, body.deliverables, body.preset)
+    persist_lock = asyncio.Lock()
 
     async def persist(key, content):
-        partial = Deliverable(**{key: content})
-        saved = await run_in_threadpool(storage.save_deliverables, project_id, partial)
-        if saved is None:
-            raise RuntimeError("Project disappeared before generation completed.")
+        async with persist_lock:
+            partial = Deliverable(**{key: content})
+            saved = await run_in_threadpool(
+                storage.save_deliverables, project_id, partial
+            )
+            if saved is None:
+                raise RuntimeError("Project disappeared before generation completed.")
 
     async def events() -> AsyncIterator[bytes]:
         async for event in generation_stream.stream_generation(
