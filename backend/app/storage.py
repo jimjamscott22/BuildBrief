@@ -1,6 +1,6 @@
 import os
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 from dotenv import load_dotenv
 from sqlalchemy import DateTime, ForeignKey, String, Text, create_engine, or_, select
@@ -118,7 +118,7 @@ def _to_deliverable(record: DeliverableRecord | None) -> Deliverable | None:
 
 
 def create_project(body: ProjectCreate) -> Project:
-    now = datetime.now(UTC)
+    now = datetime.now(timezone.utc)
     record = ProjectRecord(
         id=str(uuid.uuid4()),
         created_at=now,
@@ -139,7 +139,7 @@ def update_project(project_id: str, body: ProjectUpdate) -> Project | None:
 
         for field, value in body.model_dump().items():
             setattr(record, field, value)
-        record.updated_at = datetime.now(UTC)
+        record.updated_at = datetime.now(timezone.utc)
         session.commit()
         return _to_project(record)
 
@@ -227,7 +227,7 @@ def save_deliverables(project_id: str, deliverable: Deliverable) -> Deliverable 
             if value is not None:
                 setattr(record, field, value)
 
-        project.updated_at = datetime.now(UTC)
+        project.updated_at = datetime.now(timezone.utc)
         session.commit()
         return _to_deliverable(record)
 
