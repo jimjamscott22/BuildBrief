@@ -80,15 +80,18 @@ def _as_http_exception(error: BaseException, label: str) -> HTTPException:
     )
 
 
-async def generate_deliverables(
+def prepare_generation(
     project: Project,
-    existing: Deliverable | None,
     model: str,
     deliverable_keys: list[DeliverableKey],
-    preset: str | None = None,
-) -> GenerationResult:
+    preset: str | None,
+) -> dict[DeliverableKey, str]:
     if not deliverable_keys:
         raise HTTPException(status_code=400, detail="Select at least one deliverable.")
+    try:
+        providers.split_model_id(model)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     preset_instruction = ""
     if preset:
@@ -97,16 +100,30 @@ async def generate_deliverables(
             raise HTTPException(status_code=400, detail=f"Unknown preset: {preset}")
 
     context = system_context(project)
+    prompts = {}
+    for key in deliverable_keys:
+        parts = [context]
+        if preset_instruction:
+            parts.append(f"Preset guidance: {preset_instruction}")
+        parts.append(DELIVERABLE_PROMPTS[key].instruction)
+        prompts[key] = "\n\n".join(parts)
+    return prompts
+
+
+async def generate_deliverables(
+    project: Project,
+    existing: Deliverable | None,
+    model: str,
+    deliverable_keys: list[DeliverableKey],
+    preset: str | None = None,
+) -> GenerationResult:
+    prompts = prepare_generation(project, model, deliverable_keys, preset)
     base = existing.model_dump() if existing else Deliverable().model_dump()
 
     async def run_one(key: DeliverableKey) -> tuple[DeliverableKey, str]:
         prompt_config = DELIVERABLE_PROMPTS[key]
-        prompt_parts = [context]
-        if preset_instruction:
-            prompt_parts.append(f"Preset guidance: {preset_instruction}")
-        prompt_parts.append(prompt_config.instruction)
         try:
-            result = await providers.generate(model, "\n\n".join(prompt_parts))
+            result = await providers.generate(model, prompts[key])
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         except Exception as exc:

@@ -30,6 +30,22 @@ def test_generate_request_rejects_unknown_deliverable():
         GenerateRequest(model="ollama/test", deliverables=["roadmap"])
 
 
+def test_prepare_generation_validates_before_building_prompts():
+    prompts = deliverables.prepare_generation(
+        make_project(), "ollama/test", ["spec"], "mvp"
+    )
+    assert list(prompts) == ["spec"]
+    assert "Preset guidance" in prompts["spec"]
+
+    with pytest.raises(HTTPException) as empty:
+        deliverables.prepare_generation(make_project(), "ollama/test", [], None)
+    assert empty.value.status_code == 400
+
+    with pytest.raises(HTTPException) as model:
+        deliverables.prepare_generation(make_project(), "remote/test", ["spec"], None)
+    assert model.value.status_code == 400
+
+
 def test_generation_preserves_unselected_existing_deliverables(monkeypatch):
     calls: list[str] = []
 
