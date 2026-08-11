@@ -103,6 +103,7 @@ export async function readGenerationStream(
   const reader = body.getReader()
   const decoder = new TextDecoder()
   let buffer = ''
+  let terminalReceived = false
 
   const parseCompleteFrames = () => {
     let separator = /\r?\n\r?\n/.exec(buffer)
@@ -110,19 +111,44 @@ export async function readGenerationStream(
       const frame = buffer.slice(0, separator.index)
       buffer = buffer.slice(separator.index + separator[0].length)
       const event = parseFrame(frame)
-      if (event) onEvent(event)
+      if (event) {
+        onEvent(event)
+        if (event.type === 'done' || event.type === 'error') {
+          terminalReceived = true
+          return
+        }
+      }
       separator = /\r?\n\r?\n/.exec(buffer)
     }
   }
 
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
-    buffer += decoder.decode(value, { stream: true })
-    parseCompleteFrames()
+  const cancelReader = async () => {
+    try {
+      await reader.cancel()
+    } catch {
+      // Preserve the stream parsing or transport error that triggered cancellation.
+    }
   }
 
-  buffer += decoder.decode()
-  parseCompleteFrames()
-  if (buffer.trim()) invalidGenerationStreamData()
+  try {
+    while (!terminalReceived) {
+      const { done, value } = await reader.read()
+      if (done) {
+        buffer += decoder.decode()
+        parseCompleteFrames()
+        if (terminalReceived) break
+        if (buffer.trim()) invalidGenerationStreamData()
+        throw new Error('Generation stream ended before a terminal event.')
+      }
+      buffer += decoder.decode(value, { stream: true })
+      parseCompleteFrames()
+    }
+
+    await cancelReader()
+  } catch (error) {
+    await cancelReader()
+    throw error
+  } finally {
+    reader.releaseLock()
+  }
 }

@@ -73,7 +73,7 @@ export interface GenerateRequest {
   preset?: string
 }
 
-export type Deliverable = Partial<Record<DeliverableKey, string>>
+export type Deliverable = Partial<Record<DeliverableKey, string | null>>
 
 export interface DeliverableFailure {
   deliverable: DeliverableKey

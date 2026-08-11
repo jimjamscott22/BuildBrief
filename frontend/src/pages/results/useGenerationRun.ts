@@ -35,6 +35,7 @@ export interface GenerationRunState {
 type TerminalPhase = Extract<GenerationPhase, 'completed' | 'cancelled' | 'failed'>
 
 const STOPPED_NOTICE = 'Generation stopped. Incomplete drafts were not saved.'
+const MISSING_TERMINAL_ERROR = 'Generation stream ended before a terminal event.'
 
 function initialDrafts(deliverables: DeliverableKey[]): Deliverable {
   return Object.fromEntries(deliverables.map((deliverable) => [deliverable, ''])) as Deliverable
@@ -197,18 +198,6 @@ export function useGenerationRun(
         if (!isCurrent()) return
         setSavedRecord(record)
         setDrafts(record.deliverables ?? {})
-        setStatuses((current) => {
-          const next = { ...current }
-          for (const deliverable of deliverables) {
-            if (
-              record.deliverables?.[deliverable] !== undefined
-              && current[deliverable] !== 'failed'
-            ) {
-              next[deliverable] = 'complete'
-            }
-          }
-          return next
-        })
         setError(finalError)
         setNotice(finalNotice)
         setPhase(finalPhase)
@@ -229,7 +218,12 @@ export function useGenerationRun(
           await reloadAndSettle('cancelled', '', STOPPED_NOTICE)
           return
         }
-        await reloadAndSettle(terminalPhase ?? 'completed', terminalError)
+        if (!terminalPhase) {
+          controller.abort()
+          await reloadAndSettle('failed', MISSING_TERMINAL_ERROR)
+          return
+        }
+        await reloadAndSettle(terminalPhase, terminalError)
       } catch (streamError) {
         if (!isCurrent()) return
         streamingRef.current = false
@@ -241,6 +235,7 @@ export function useGenerationRun(
           await reloadAndSettle(terminalPhase, terminalError)
           return
         }
+        controller.abort()
         await reloadAndSettle('failed', errorMessage(streamError))
       }
     }

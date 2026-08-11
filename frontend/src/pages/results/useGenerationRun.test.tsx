@@ -92,10 +92,14 @@ describe('useGenerationRun', () => {
   it('tracks elapsed seconds only while the run is active', async () => {
     vi.useFakeTimers()
     let finishStream: (() => void) | undefined
-    vi.mocked(api.streamDeliverables).mockReturnValue(
-      new Promise((resolve) => {
-        finishStream = resolve
-      }),
+    let sendEvent: ((event: GenerationStreamEvent) => void) | undefined
+    vi.mocked(api.streamDeliverables).mockImplementation(
+      (_id, _request, onEvent) => {
+        sendEvent = onEvent
+        return new Promise((resolve) => {
+          finishStream = resolve
+        })
+      },
     )
     vi.mocked(api.getProject).mockResolvedValue(savedRecord({ spec: '# Saved' }))
 
@@ -107,6 +111,7 @@ describe('useGenerationRun', () => {
     expect(result.current.elapsed).toBe(2)
 
     await act(async () => {
+      sendEvent?.({ type: 'done', failures: [] })
       finishStream?.()
       await Promise.resolve()
     })
@@ -116,6 +121,27 @@ describe('useGenerationRun', () => {
       vi.advanceTimersByTime(2_000)
     })
     expect(result.current.elapsed).toBe(2)
+  })
+
+  it('fails a clean stream resolution without a terminal and aborts before reloading', async () => {
+    let streamSignal: AbortSignal | undefined
+    let signalAtReload: boolean | undefined
+    vi.mocked(api.streamDeliverables).mockImplementation(
+      async (_id, _request, _onEvent, signal) => {
+        streamSignal = signal
+      },
+    )
+    vi.mocked(api.getProject).mockImplementation(async () => {
+      signalAtReload = streamSignal?.aborted
+      return savedRecord({ spec: '# Existing spec' })
+    })
+
+    const { result } = renderHook(() => useGenerationRun('project-1', request))
+
+    await waitFor(() => expect(result.current.phase).toBe('failed'))
+    expect(result.current.error).toBe('Generation stream ended before a terminal event.')
+    expect(signalAtReload).toBe(true)
+    expect(result.current.statuses.spec).toBe('queued')
   })
 
   it('stops intentionally, discards incomplete drafts, and reloads saved output', async () => {
@@ -157,6 +183,41 @@ describe('useGenerationRun', () => {
       'Generation stopped. Incomplete drafts were not saved.',
     )
     expect(result.current.error).toBe('')
+  })
+
+  it('does not promote stale or explicitly null saved fields after cancellation', async () => {
+    const stoppedRequest: GenerateRequest = {
+      ...request,
+      deliverables: ['spec', 'implementation_plan'],
+    }
+    vi.mocked(api.streamDeliverables).mockImplementation(
+      async (_id, _request, onEvent, signal) => {
+        onEvent({ type: 'started', deliverables: stoppedRequest.deliverables })
+        onEvent({ type: 'delta', deliverable: 'spec', delta: '# Unsaved replacement' })
+        await new Promise<void>((_resolve, reject) => {
+          signal.addEventListener('abort', () => reject(abortError()), { once: true })
+        })
+      },
+    )
+    vi.mocked(api.getProject).mockResolvedValue(savedRecord({
+      spec: '# Previously saved spec',
+      implementation_plan: null,
+      agent_prompt: null,
+    }))
+
+    const { result } = renderHook(() => useGenerationRun('project-1', stoppedRequest))
+    await waitFor(() => expect(result.current.statuses.spec).toBe('generating'))
+
+    act(() => result.current.stop())
+
+    await waitFor(() => expect(result.current.phase).toBe('cancelled'))
+    expect(result.current.drafts.spec).toBe('# Previously saved spec')
+    expect(result.current.drafts.implementation_plan).toBeNull()
+    expect(result.current.statuses).toEqual({
+      spec: 'generating',
+      implementation_plan: 'queued',
+    })
+    expect(Object.values(result.current.statuses)).not.toContain('complete')
   })
 
   it('latches Stop when the aborted stream resolves cleanly', async () => {
@@ -377,34 +438,79 @@ describe('useGenerationRun', () => {
     expect(api.getProject).toHaveBeenCalledWith('project-1')
   })
 
-  it('fails on a terminal error event and reloads authoritative output', async () => {
-    vi.mocked(api.streamDeliverables).mockImplementation(async (_id, _request, onEvent) => {
-      onEvent({ type: 'started', deliverables: ['spec'] })
-      onEvent({ type: 'delta', deliverable: 'spec', delta: '# Unsaved' })
-      onEvent({ type: 'error', message: 'Provider became unavailable.' })
-      onEvent({ type: 'done', failures: [] })
+  it('keeps current-run statuses after a terminal error reloads stale and null fields', async () => {
+    const failedRequest: GenerateRequest = {
+      ...request,
+      deliverables: ['spec', 'implementation_plan'],
+    }
+    let streamSignal: AbortSignal | undefined
+    let signalAtReload: boolean | undefined
+    vi.mocked(api.streamDeliverables).mockImplementation(
+      async (_id, _request, onEvent, signal) => {
+        streamSignal = signal
+        onEvent({ type: 'started', deliverables: failedRequest.deliverables })
+        onEvent({ type: 'delta', deliverable: 'spec', delta: '# Unsaved' })
+        onEvent({ type: 'error', message: 'Provider became unavailable.' })
+      },
+    )
+    vi.mocked(api.getProject).mockImplementation(async () => {
+      signalAtReload = streamSignal?.aborted
+      return savedRecord({
+        spec: '# Previously saved spec',
+        implementation_plan: null,
+        agent_prompt: null,
+      })
     })
-    vi.mocked(api.getProject).mockResolvedValue(savedRecord(null))
 
-    const { result } = renderHook(() => useGenerationRun('project-1', request))
+    const { result } = renderHook(() => useGenerationRun('project-1', failedRequest))
 
     await waitFor(() => expect(result.current.phase).toBe('failed'))
     expect(result.current.error).toBe('Provider became unavailable.')
-    expect(result.current.drafts.spec).toBeUndefined()
-    expect(result.current.savedRecord).toEqual(savedRecord(null))
+    expect(result.current.drafts.spec).toBe('# Previously saved spec')
+    expect(result.current.drafts.implementation_plan).toBeNull()
+    expect(result.current.statuses).toEqual({
+      spec: 'generating',
+      implementation_plan: 'queued',
+    })
+    expect(signalAtReload).toBe(false)
     expect(api.getProject).toHaveBeenCalledWith('project-1')
   })
 
-  it('fails on a transport error and reloads authoritative output', async () => {
-    vi.mocked(api.streamDeliverables).mockRejectedValue(new Error('Connection lost.'))
-    vi.mocked(api.getProject).mockResolvedValue(savedRecord({ spec: '# Previously saved' }))
+  it('aborts before a transport-failure reload without promoting stale or null fields', async () => {
+    const failedRequest: GenerateRequest = {
+      ...request,
+      deliverables: ['spec', 'implementation_plan'],
+    }
+    let streamSignal: AbortSignal | undefined
+    let signalAtReload: boolean | undefined
+    vi.mocked(api.streamDeliverables).mockImplementation(
+      async (_id, _request, onEvent, signal) => {
+        streamSignal = signal
+        onEvent({ type: 'started', deliverables: failedRequest.deliverables })
+        onEvent({ type: 'delta', deliverable: 'spec', delta: '# Interrupted replacement' })
+        throw new Error('Connection lost.')
+      },
+    )
+    vi.mocked(api.getProject).mockImplementation(async () => {
+      signalAtReload = streamSignal?.aborted
+      return savedRecord({
+        spec: '# Previously saved spec',
+        implementation_plan: null,
+        agent_prompt: null,
+      })
+    })
 
-    const { result } = renderHook(() => useGenerationRun('project-1', request))
+    const { result } = renderHook(() => useGenerationRun('project-1', failedRequest))
 
     await waitFor(() => expect(result.current.phase).toBe('failed'))
     expect(result.current.error).toBe('Connection lost.')
-    expect(result.current.drafts.spec).toBe('# Previously saved')
-    expect(result.current.savedRecord?.deliverables?.spec).toBe('# Previously saved')
+    expect(signalAtReload).toBe(true)
+    expect(result.current.drafts.spec).toBe('# Previously saved spec')
+    expect(result.current.drafts.implementation_plan).toBeNull()
+    expect(result.current.statuses).toEqual({
+      spec: 'generating',
+      implementation_plan: 'queued',
+    })
     expect(api.getProject).toHaveBeenCalledWith('project-1')
   })
 

@@ -28,6 +28,20 @@ interface LocationState {
   terminalError?: string
 }
 
+function snapshotGenerationRequest(
+  request: GenerateRequest | undefined,
+): GenerateRequest | undefined {
+  if (!request) return undefined
+  return { ...request, deliverables: [...request.deliverables] }
+}
+
+function consumedLocationState(state: LocationState | null): LocationState {
+  if (!state) return {}
+  const replacement = { ...state }
+  delete replacement.generationRequest
+  return replacement
+}
+
 const pad = (n: number) => n.toString().padStart(2, '0')
 
 const statusLabel = {
@@ -56,7 +70,10 @@ export default function ResultsPage() {
   const location = useLocation()
   const navigate = useNavigate()
   const state = location.state as LocationState | null
-  const generationRequest = state?.generationRequest
+  const initialLocationState = useRef(state)
+  const [generationRequest, setGenerationRequest] = useState<GenerateRequest | undefined>(
+    () => snapshotGenerationRequest(state?.generationRequest),
+  )
   const generatingMode = generationRequest !== undefined
   const hasSavedRouteState = state?.deliverables !== undefined && state.project !== undefined
   const run = useGenerationRun(id, generationRequest)
@@ -64,6 +81,7 @@ export default function ResultsPage() {
   const [fetchedDeliverables, setFetchedDeliverables] = useState<Deliverable | null>(null)
   const [loading, setLoading] = useState(!generatingMode && !hasSavedRouteState)
   const [fetchError, setFetchError] = useState('')
+  const consumedRun = useRef(false)
   const replacedRun = useRef('')
 
   const terminalPhase =
@@ -83,6 +101,15 @@ export default function ResultsPage() {
       ...(run.error ? { terminalError: run.error } : {}),
     }
   }
+
+  useEffect(() => {
+    if (!generatingMode || consumedRun.current) return
+    consumedRun.current = true
+    navigate(location.pathname, {
+      replace: true,
+      state: consumedLocationState(initialLocationState.current),
+    })
+  }, [generatingMode, location.pathname, navigate])
 
   useEffect(() => {
     if (!id || generatingMode || hasSavedRouteState) return
@@ -115,6 +142,16 @@ export default function ResultsPage() {
     replacedRun.current = generationKey
     navigate(location.pathname, { replace: true, state: replacementState })
   }, [generationKey, location.pathname, navigate, terminalReady])
+
+  useEffect(() => {
+    if (
+      !generatingMode
+      || !hasSavedRouteState
+      || state?.generationRequest !== undefined
+      || replacedRun.current !== generationKey
+    ) return
+    setGenerationRequest(undefined)
+  }, [generationKey, generatingMode, hasSavedRouteState, state?.generationRequest])
 
   const deliverables = generatingMode
     ? (run.savedRecord !== undefined ? (run.savedRecord.deliverables ?? {}) : run.drafts)

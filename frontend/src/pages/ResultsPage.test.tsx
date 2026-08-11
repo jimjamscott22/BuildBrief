@@ -1,5 +1,5 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import type { ReactNode } from 'react'
+import { StrictMode, type ReactNode } from 'react'
 import {
   MemoryRouter,
   Route,
@@ -172,18 +172,29 @@ describe('ResultsPage live generation', () => {
         drafts: { spec: '# Incomplete draft', implementation_plan: '# Unsaved plan' },
         statuses: { spec: 'generating', implementation_plan: 'queued' },
         notice: 'Generation stopped. Incomplete drafts were not saved.',
-        savedRecord: { project, deliverables: { spec: '# Saved spec' } },
+        savedRecord: {
+          project,
+          deliverables: {
+            spec: '# Saved spec',
+            implementation_plan: null,
+            agent_prompt: null,
+          },
+        },
       }),
     )
 
-    renderGeneratingResults()
+    renderGeneratingResultsBeforeReplacement()
 
-    expect(await screen.findByRole('status')).toHaveTextContent(
+    expect(screen.getByRole('status')).toHaveTextContent(
       'Generation stopped. Incomplete drafts were not saved.',
     )
     expect(screen.getByRole('heading', { name: 'Saved spec' })).toBeInTheDocument()
     expect(screen.queryByText('Incomplete draft')).not.toBeInTheDocument()
     expect(screen.queryByText('Unsaved plan')).not.toBeInTheDocument()
+    expect(screen.getByText('0 of 2 complete')).toBeInTheDocument()
+    expect(screen.getByText('Generating')).toBeInTheDocument()
+    expect(screen.getByText('Queued')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Export Current' })).toBeDisabled()
   })
 
   it('never falls back to an incomplete draft when the terminal saved record is empty', () => {
@@ -417,6 +428,134 @@ describe('ResultsPage saved results and history', () => {
     expect(screen.getByRole('button', { name: 'Export Bundle' })).toBeEnabled()
   })
 
+  it('consumes an in-progress request immediately and does not hand it back after remount', async () => {
+    let currentLocation: Location | undefined
+    function LocationObserver() {
+      currentLocation = useLocation()
+      return null
+    }
+    vi.mocked(useGenerationRun).mockImplementation((_id, request) =>
+      request
+        ? runState({
+            phase: 'running',
+            drafts: { spec: '# Streaming', implementation_plan: '' },
+            statuses: { spec: 'generating', implementation_plan: 'queued' },
+          })
+        : runState(),
+    )
+
+    const firstRender = renderGeneratingResults(<LocationObserver />)
+
+    await waitFor(() => {
+      expect(currentLocation?.state).toEqual({ project })
+    })
+    const hookCalls = vi.mocked(useGenerationRun).mock.calls
+    expect(hookCalls[hookCalls.length - 1]?.[1]).toEqual(generationRequest)
+
+    const consumedEntry = {
+      pathname: currentLocation?.pathname ?? '/results/project-1',
+      state: currentLocation?.state,
+    }
+    firstRender.unmount()
+    vi.mocked(useGenerationRun).mockClear()
+    vi.mocked(api.getProject).mockClear()
+    vi.mocked(api.getProject).mockResolvedValue({
+      project,
+      deliverables: { spec: '# Saved while away' },
+    })
+
+    render(
+      <MemoryRouter initialEntries={[consumedEntry]}>
+        <ResultsRoute />
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByRole('heading', { name: 'Saved while away' })).toBeInTheDocument()
+    expect(vi.mocked(useGenerationRun).mock.calls).not.toHaveLength(0)
+    expect(
+      vi.mocked(useGenerationRun).mock.calls.every(([, request]) => request === undefined),
+    ).toBe(true)
+  })
+
+  it('keeps failed authoritative reloads consumed so a remount cannot replay generation', async () => {
+    let currentLocation: Location | undefined
+    function LocationObserver() {
+      currentLocation = useLocation()
+      return null
+    }
+    vi.mocked(useGenerationRun).mockImplementation((_id, request) =>
+      request
+        ? runState({
+            phase: 'failed',
+            drafts: { spec: '# Unsaved stream', implementation_plan: '' },
+            statuses: { spec: 'generating', implementation_plan: 'queued' },
+            error: 'Could not reload saved generation results.',
+            savedRecord: undefined,
+          })
+        : runState(),
+    )
+
+    const firstRender = renderGeneratingResults(<LocationObserver />)
+
+    await waitFor(() => {
+      expect(currentLocation?.state).toEqual({ project })
+    })
+
+    const consumedEntry = {
+      pathname: currentLocation?.pathname ?? '/results/project-1',
+      state: currentLocation?.state,
+    }
+    firstRender.unmount()
+    vi.mocked(useGenerationRun).mockClear()
+    vi.mocked(api.getProject).mockRejectedValue(new Error('Reload still unavailable.'))
+
+    render(
+      <MemoryRouter initialEntries={[consumedEntry]}>
+        <ResultsRoute />
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Could not load that saved project.',
+    )
+    expect(
+      vi.mocked(useGenerationRun).mock.calls.every(([, request]) => request === undefined),
+    ).toBe(true)
+  })
+
+  it('consumes an in-progress entry only once during StrictMode effect rehearsal', async () => {
+    const navigator: Navigator = {
+      createHref: () => '/results/project-1',
+      go: vi.fn(),
+      push: vi.fn(),
+      replace: vi.fn(),
+    }
+    vi.mocked(useGenerationRun).mockReturnValue(runState({
+      phase: 'running',
+      drafts: { spec: '', implementation_plan: '' },
+      statuses: { spec: 'queued', implementation_plan: 'queued' },
+    }))
+
+    render(
+      <StrictMode>
+        <Router
+          location={{
+            pathname: '/results/project-1',
+            search: '',
+            hash: '',
+            state: { generationRequest, project },
+            key: 'strict-live-results',
+          }}
+          navigator={navigator}
+        >
+          <ResultsRoute />
+        </Router>
+      </StrictMode>,
+    )
+
+    await waitFor(() => expect(navigator.replace).toHaveBeenCalledOnce())
+  })
+
   it('keeps the empty-state message and library recovery for a truly empty saved project', async () => {
     vi.mocked(api.getProject).mockResolvedValue({ project, deliverables: null })
 
@@ -509,9 +648,14 @@ describe('ResultsPage saved results and history', () => {
         project,
       })
     })
+    const activeRequests = vi.mocked(useGenerationRun).mock.calls
+      .map(([, request]) => request)
+      .filter((request) => request !== undefined)
+    expect(activeRequests.length).toBeGreaterThan(0)
+    expect(activeRequests.every((request) => request === activeRequests[0])).toBe(true)
     expect(
-      vi.mocked(useGenerationRun).mock.calls.filter(([, request]) => request !== undefined),
-    ).toHaveLength(1)
+      vi.mocked(useGenerationRun).mock.calls.some(([, request]) => request === undefined),
+    ).toBe(true)
 
     const replacedEntry = {
       pathname: currentLocation?.pathname ?? '/results/project-1',
